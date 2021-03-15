@@ -34,6 +34,7 @@ public class Glance : MVRScript
         "Testes",
     };
 
+    private readonly JSONStorableBool _trackPlayerJSON = new JSONStorableBool("TrackPlayer", true);
     private readonly JSONStorableBool _trackMirrorsJSON = new JSONStorableBool("TrackMirrors", true);
     private readonly JSONStorableBool _trackWindowCameraJSON = new JSONStorableBool("TrackWindowCamera", true);
     private readonly JSONStorableBool _trackSelfHandsJSON = new JSONStorableBool("TrackSelfHands", false);
@@ -87,6 +88,21 @@ public class Glance : MVRScript
             _rEye = _bones.First(eye => eye.name == "rEye").transform;
             _eyeTarget = containingAtom.freeControllers.First(fc => fc.name == "eyeTargetControl");
 
+            CreateToggle(_trackPlayerJSON);
+            CreateToggle(_trackMirrorsJSON);
+            CreateToggle(_trackWindowCameraJSON);
+            CreateToggle(_trackSelfHandsJSON);
+            CreateToggle(_trackSelfGenitalsJSON);
+            CreateToggle(_trackPersonsJSON);
+            CreateToggle(_trackObjectsJSON);
+            CreateSlider(_frustrumJSON);
+            CreateSlider(_gazeMinDurationJSON);
+            CreateSlider(_gazeMaxDurationJSON);
+            CreateSlider(_shakeMinDurationJSON);
+            CreateSlider(_shakeMaxDurationJSON);
+            CreateSlider(_shakeRangeJSON);
+
+            RegisterBool(_trackPlayerJSON);
             RegisterBool(_trackMirrorsJSON);
             RegisterBool(_trackWindowCameraJSON);
             RegisterBool(_trackSelfHandsJSON);
@@ -183,6 +199,11 @@ public class Glance : MVRScript
     private void SyncObjects()
     {
         _objects.Clear();
+
+        if (_trackPlayerJSON.val)
+        {
+            _objects.Add(SuperController.singleton.centerCameraTarget.transform);
+        }
 
         foreach (var atom in SuperController.singleton.GetAtoms())
         {
