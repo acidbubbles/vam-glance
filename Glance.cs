@@ -35,12 +35,12 @@ public class Glance : MVRScript
     };
 
     private readonly JSONStorableBool _trackPlayerJSON = new JSONStorableBool("TrackPlayer", true);
-    private readonly JSONStorableBool _trackMirrorsJSON = new JSONStorableBool("TrackMirrors", true);
-    private readonly JSONStorableBool _trackWindowCameraJSON = new JSONStorableBool("TrackWindowCamera", true);
+    private readonly JSONStorableBool _trackMirrorsJSON = new JSONStorableBool("TrackMirrors", false);
+    private readonly JSONStorableBool _trackWindowCameraJSON = new JSONStorableBool("TrackWindowCamera", false);
     private readonly JSONStorableBool _trackSelfHandsJSON = new JSONStorableBool("TrackSelfHands", false);
-    private readonly JSONStorableBool _trackSelfGenitalsJSON = new JSONStorableBool("TrackSelfGenitals", false);
-    private readonly JSONStorableBool _trackPersonsJSON = new JSONStorableBool("TrackPersons", false);
-    private readonly JSONStorableBool _trackObjectsJSON = new JSONStorableBool("TrackObjects", false);
+    private readonly JSONStorableBool _trackSelfGenitalsJSON = new JSONStorableBool("TrackSelfGenitals", true);
+    private readonly JSONStorableBool _trackPersonsJSON = new JSONStorableBool("TrackPersons", true);
+    private readonly JSONStorableBool _trackObjectsJSON = new JSONStorableBool("TrackObjects", true);
     private readonly JSONStorableFloat _frustrumJSON = new JSONStorableFloat("FrustrumFOV", 6f, 0f, 45f, true);
     private readonly JSONStorableFloat _gazeMinDurationJSON = new JSONStorableFloat("GazeMinDuration", 0.5f, 0f, 10f, false);
     private readonly JSONStorableFloat _gazeMaxDurationJSON = new JSONStorableFloat("GazeMaxDuration", 2f, 0f, 10f, false);
