@@ -47,7 +47,7 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _gazeMaxDurationJSON = new JSONStorableFloat("GazeMaxDuration", 2f, 0f, 10f, false);
     private readonly JSONStorableFloat _shakeMinDurationJSON = new JSONStorableFloat("ShakeMinDuration", 0.2f, 0f, 1f, false);
     private readonly JSONStorableFloat _shakeMaxDurationJSON = new JSONStorableFloat("ShakeMaxDuration", 0.5f, 0f, 1f, false);
-    private readonly JSONStorableFloat _shakeRangeJSON = new JSONStorableFloat("ShakeRangeDuration", 0.015f, 0f, 0.1f, true);
+    private readonly JSONStorableFloat _shakeRangeJSON = new JSONStorableFloat("ShakeRange", 0.015f, 0f, 0.1f, true);
     private readonly JSONStorableBool _debugJSON = new JSONStorableBool("Debug", false);
     private readonly JSONStorableString _debugDisplayJSON = new JSONStorableString("DebugDisplay", "");
 
@@ -92,22 +92,22 @@ public class Glance : MVRScript
             _rEye = _bones.First(eye => eye.name == "rEye").transform;
             _eyeTarget = containingAtom.freeControllers.First(fc => fc.name == "eyeTargetControl");
 
-            CreateToggle(_trackPlayerJSON);
-            CreateToggle(_trackMirrorsJSON);
-            CreateToggle(_trackWindowCameraJSON);
-            CreateToggle(_trackSelfHandsJSON);
-            CreateToggle(_trackSelfGenitalsJSON);
-            CreateToggle(_trackPersonsJSON);
-            CreateToggle(_trackObjectsJSON);
-            CreateToggle(_debugJSON);
+            CreateToggle(_trackPlayerJSON).label = "Player (camera)";
+            CreateToggle(_trackMirrorsJSON).label = "Mirrors (look at themselves)";
+            CreateToggle(_trackWindowCameraJSON).label = "Window camera";
+            CreateToggle(_trackSelfHandsJSON).label = "Hands (self)";
+            CreateToggle(_trackSelfGenitalsJSON).label = "Genitals (self)";
+            CreateToggle(_trackPersonsJSON).label = "Other persons (eyes, hands and  genitals)";
+            CreateToggle(_trackObjectsJSON).label = "Objects (toys, cua, shapes)";
+            CreateToggle(_debugJSON).label = "Show debug information";
             CreateTextField(_debugDisplayJSON);
 
-            CreateSlider(_frustrumJSON, true);
-            CreateSlider(_gazeMinDurationJSON, true);
-            CreateSlider(_gazeMaxDurationJSON, true);
-            CreateSlider(_shakeMinDurationJSON, true);
-            CreateSlider(_shakeMaxDurationJSON, true);
-            CreateSlider(_shakeRangeJSON, true);
+            CreateSlider(_frustrumJSON, true).label = "Frustrum field of view";
+            CreateSlider(_gazeMinDurationJSON, true).label = "Min. dur. looking at a target";
+            CreateSlider(_gazeMaxDurationJSON, true).label = "Max. dur. looking at a target";
+            CreateSlider(_shakeMinDurationJSON, true).label = "Min. eye saccade duration";
+            CreateSlider(_shakeMaxDurationJSON, true).label = "Max. eye saccade duration";
+            CreateSlider(_shakeRangeJSON, true).label = "Range of eye saccade";
 
             RegisterBool(_trackPlayerJSON);
             RegisterBool(_trackMirrorsJSON);
@@ -159,6 +159,8 @@ public class Glance : MVRScript
 
         try
         {
+            Rescan();
+
             _eyeTargetRestorePosition = _eyeTarget.control.position;
             _eyeBehaviorRestoreLookMode = _eyeBehavior.currentLookMode;
 
@@ -345,7 +347,7 @@ public class Glance : MVRScript
         _debugDisplaySb.Length = 0;
 
         _debugDisplaySb.Append(_lockTargetCandidates.Count);
-        _debugDisplaySb.Append(" candidates on ");
+        _debugDisplaySb.Append(" in focus over ");
         _debugDisplaySb.Append(_objects.Count);
         _debugDisplaySb.Append(" potential targets.");
         _debugDisplaySb.AppendLine();
@@ -355,17 +357,17 @@ public class Glance : MVRScript
             var fc = _lockTarget.GetComponent<FreeControllerV3>();
             if (!ReferenceEquals(fc, null))
             {
-                _debugDisplaySb.Append("Locked on ");
+                _debugDisplaySb.Append("Locked on '");
                 _debugDisplaySb.Append(fc.name);
-                _debugDisplaySb.Append(" of atom ");
+                _debugDisplaySb.Append("' of atom '");
                 _debugDisplaySb.Append(fc.containingAtom.name);
-                _debugDisplaySb.AppendLine();
+                _debugDisplaySb.AppendLine("'");
             }
             else
             {
-                _debugDisplaySb.Append("Locked on ");
+                _debugDisplaySb.Append("Locked on '");
                 _debugDisplaySb.Append(_lockTarget.name);
-                _debugDisplaySb.AppendLine();
+                _debugDisplaySb.AppendLine("'");
             }
         }
         else
