@@ -1,15 +1,15 @@
 { 
    "licenseType" : "CC BY-SA", 
-   "creatorName" : "Author", 
-   "packageName" : "MyPlugin", 
+   "creatorName" : "Acidbubbles", 
+   "packageName" : "Glance", 
    "includeVersionsInReferences" : "true", 
-   "description" : "v0.0.0 MyPlugin Description", 
+   "description" : "v0.0.0 Glance is a plugin that tracks objects in front of the head. Good for mocap.", 
    "credits" : "", 
-   "instructions" : "", 
-   "promotionalLink" : "https://github.com/Author/MyPlugin", 
+   "instructions" : "Add to a Person atom, by moving the head or the objects in front of it, the eyes should move.", 
+   "promotionalLink" : "https://github.com/acidbubbles/vam-glance", 
    "programVersion" : "1.19.0.5", 
    "contentList" : [ 
-      "Custom\\Scripts\\Author\\MyPlugin\\MyPlugin.cs"
+      "Custom\\Scripts\\Acidbubbles\\Glance\\Glance.cs"
    ], 
    "dependencies" : { 
    }
