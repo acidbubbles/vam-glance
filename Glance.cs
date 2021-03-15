@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using SimpleJSON;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -47,6 +48,8 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _shakeMinDurationJSON = new JSONStorableFloat("ShakeMinDuration", 0.2f, 0f, 1f, false);
     private readonly JSONStorableFloat _shakeMaxDurationJSON = new JSONStorableFloat("ShakeMaxDuration", 0.5f, 0f, 1f, false);
     private readonly JSONStorableFloat _shakeRangeJSON = new JSONStorableFloat("ShakeRangeDuration", 0.015f, 0f, 0.1f, true);
+    private readonly JSONStorableBool _debugJSON = new JSONStorableBool("Debug", false);
+    private readonly JSONStorableString _debugDisplayJSON = new JSONStorableString("DebugDisplay", "");
 
     private bool _ready;
     private bool _restored;
@@ -70,6 +73,7 @@ public class Glance : MVRScript
     private float _nextShakeTime;
     private Vector3 _shakeValue;
     private Transform _lockTarget;
+    private readonly StringBuilder _debugDisplaySb = new StringBuilder();
 
     public override void Init()
     {
@@ -95,12 +99,15 @@ public class Glance : MVRScript
             CreateToggle(_trackSelfGenitalsJSON);
             CreateToggle(_trackPersonsJSON);
             CreateToggle(_trackObjectsJSON);
-            CreateSlider(_frustrumJSON);
-            CreateSlider(_gazeMinDurationJSON);
-            CreateSlider(_gazeMaxDurationJSON);
-            CreateSlider(_shakeMinDurationJSON);
-            CreateSlider(_shakeMaxDurationJSON);
-            CreateSlider(_shakeRangeJSON);
+            CreateToggle(_debugJSON);
+            CreateTextField(_debugDisplayJSON);
+
+            CreateSlider(_frustrumJSON, true);
+            CreateSlider(_gazeMinDurationJSON, true);
+            CreateSlider(_gazeMaxDurationJSON, true);
+            CreateSlider(_shakeMinDurationJSON, true);
+            CreateSlider(_shakeMaxDurationJSON, true);
+            CreateSlider(_shakeRangeJSON, true);
 
             RegisterBool(_trackPlayerJSON);
             RegisterBool(_trackMirrorsJSON);
@@ -326,8 +333,48 @@ public class Glance : MVRScript
         _lockTarget = _lockTargetCandidates.Count > 0
             ? _lockTargetCandidates[Random.Range(0, _lockTargetCandidates.Count)].transform
             : null;
+
+        if (_debugJSON.val && UITransform.gameObject.activeInHierarchy) UpdateDebugDisplay();
+
         _shakeValue = Vector3.zero;
         _nextShakeTime = Time.time + Random.Range(_shakeMinDurationJSON.val, _shakeMaxDurationJSON.val);
+    }
+
+    private void UpdateDebugDisplay()
+    {
+        _debugDisplaySb.Length = 0;
+
+        _debugDisplaySb.Append(_lockTargetCandidates.Count);
+        _debugDisplaySb.Append(" candidates on ");
+        _debugDisplaySb.Append(_objects.Count);
+        _debugDisplaySb.Append(" potential targets.");
+        _debugDisplaySb.AppendLine();
+
+        if (!ReferenceEquals(_lockTarget, null))
+        {
+            var fc = _lockTarget.GetComponent<FreeControllerV3>();
+            if (!ReferenceEquals(fc, null))
+            {
+                _debugDisplaySb.Append("Locked on ");
+                _debugDisplaySb.Append(fc.name);
+                _debugDisplaySb.Append(" of atom ");
+                _debugDisplaySb.Append(fc.containingAtom.name);
+                _debugDisplaySb.AppendLine();
+            }
+            else
+            {
+                _debugDisplaySb.Append("Locked on ");
+                _debugDisplaySb.Append(_lockTarget.name);
+                _debugDisplaySb.AppendLine();
+            }
+        }
+        else
+        {
+            _debugDisplaySb.AppendLine("Not locked on a target.");
+        }
+
+        _debugDisplayJSON.val = _debugDisplaySb.ToString();
+        _debugDisplaySb.Length = 0;
     }
 
     private void ScanObjects(Vector3 eyesCenter)
