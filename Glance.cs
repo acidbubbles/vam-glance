@@ -1,3 +1,7 @@
+// TODO: Change width ratio
+// TODO: Vertical / Horizontal offset (look down)
+// TODO: Look at empties?
+// TODO: Player, look down
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -262,6 +266,12 @@ public class Glance : MVRScript
                 {
                     if (!_trackObjectsJSON.val) continue;
                     _objects.Add(atom.mainController.control);
+                    break;
+                }
+                case "Empty":
+                {
+                    if (atom.storeId.StartsWith("GlanceTarget_"))
+                        _objects.Add(atom.mainController.control);
                     break;
                 }
             }
