@@ -18,6 +18,7 @@ public class Glance : MVRScript
     private const float _objectScanSpan = 0.1f;
     private const float _naturalLookDistance = 0.8f;
     private const float _angularVelocityPredictiveMultiplier = 0.5f;
+    private const float _angularVelocitySqrMagnitudeTrigger = 3f;
 
     private static readonly HashSet<string> _mirrorAtomTypes = new HashSet<string>(new[]
     {
@@ -399,9 +400,9 @@ public class Glance : MVRScript
             _angularVelocityBurstCooldown = 0f;
         }
 
-        if (_headRB.angularVelocity.sqrMagnitude > 3f)
+        if (_headRB.angularVelocity.sqrMagnitude > _angularVelocitySqrMagnitudeTrigger)
         {
-            _angularVelocityBurstCooldown = Time.time + _gazeMinDurationJSON.val;
+            _angularVelocityBurstCooldown = Time.time + 0.5f;
             _nextGazeTime = 0f;
         }
 
