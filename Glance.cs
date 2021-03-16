@@ -46,7 +46,9 @@ public class Glance : MVRScript
     private readonly JSONStorableBool _trackSelfGenitalsJSON = new JSONStorableBool("TrackSelfGenitals", true);
     private readonly JSONStorableBool _trackPersonsJSON = new JSONStorableBool("TrackPersons", true);
     private readonly JSONStorableBool _trackObjectsJSON = new JSONStorableBool("TrackObjects", true);
-    private readonly JSONStorableFloat _frustrumJSON = new JSONStorableFloat("FrustrumFOV", 6f, 0f, 45f, true);
+    private readonly JSONStorableFloat _frustrumJSON = new JSONStorableFloat("FrustrumFOV", 16f, 0f, 45f, true);
+    private readonly JSONStorableFloat _frustrumRatioJSON = new JSONStorableFloat("FrustrumRatio", 1.3f, 0.5f, 2f, true);
+    private readonly JSONStorableFloat _frustrumRotateJSON = new JSONStorableFloat("FrustrumRotate", -5f, -45f, 45f, true);
     private readonly JSONStorableFloat _gazeMinDurationJSON = new JSONStorableFloat("GazeMinDuration", 0.5f, 0f, 10f, false);
     private readonly JSONStorableFloat _gazeMaxDurationJSON = new JSONStorableFloat("GazeMaxDuration", 2f, 0f, 10f, false);
     private readonly JSONStorableFloat _shakeMinDurationJSON = new JSONStorableFloat("ShakeMinDuration", 0.2f, 0f, 1f, false);
@@ -63,6 +65,7 @@ public class Glance : MVRScript
     private Transform _lEye;
     private Transform _rEye;
     private FreeControllerV3 _eyeTarget;
+    private Quaternion _frustrumRotation = Quaternion.Euler(-5f, 0f, 0f);
     private readonly List<BoxCollider> _mirrors = new List<BoxCollider>();
     private readonly List<Transform> _objects = new List<Transform>();
     private Vector3 _eyeTargetRestorePosition;
@@ -78,6 +81,8 @@ public class Glance : MVRScript
     private Vector3 _shakeValue;
     private Transform _lockTarget;
     private readonly StringBuilder _debugDisplaySb = new StringBuilder();
+    private LineRenderer _lineRenderer;
+    private Vector3[] _lineRendererPoints;
 
     public override void Init()
     {
@@ -107,10 +112,12 @@ public class Glance : MVRScript
             CreateTextField(_debugDisplayJSON);
 
             CreateSlider(_frustrumJSON, true).label = "Frustrum field of view";
-            CreateSlider(_gazeMinDurationJSON, true).label = "Min. dur. looking at a target";
-            CreateSlider(_gazeMaxDurationJSON, true).label = "Max. dur. looking at a target";
-            CreateSlider(_shakeMinDurationJSON, true).label = "Min. eye saccade duration";
-            CreateSlider(_shakeMaxDurationJSON, true).label = "Max. eye saccade duration";
+            CreateSlider(_frustrumRatioJSON, true).label = "Frustrum ratio (width multiplier)";
+            CreateSlider(_frustrumRotateJSON, true).label = "Frustrum rotation (tilt)";
+            CreateSlider(_gazeMinDurationJSON, true).label = "Min target lock time";
+            CreateSlider(_gazeMaxDurationJSON, true).label = "Max target lock time";
+            CreateSlider(_shakeMinDurationJSON, true).label = "Min eye saccade time";
+            CreateSlider(_shakeMaxDurationJSON, true).label = "Max eye saccade time";
             CreateSlider(_shakeRangeJSON, true).label = "Range of eye saccade";
 
             RegisterBool(_trackPlayerJSON);
@@ -121,6 +128,8 @@ public class Glance : MVRScript
             RegisterBool(_trackPersonsJSON);
             RegisterBool(_trackObjectsJSON);
             RegisterFloat(_frustrumJSON);
+            RegisterFloat(_frustrumRatioJSON);
+            RegisterFloat(_frustrumRotateJSON);
             RegisterFloat(_gazeMinDurationJSON);
             RegisterFloat(_gazeMaxDurationJSON);
             RegisterFloat(_shakeMinDurationJSON);
@@ -133,10 +142,12 @@ public class Glance : MVRScript
             _trackSelfGenitalsJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _trackPersonsJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _trackObjectsJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
+            _frustrumRotateJSON.setCallbackFunction = val => _frustrumRotation = Quaternion.Euler(_frustrumRotateJSON.val, 0f, 0f);
             _gazeMinDurationJSON.setCallbackFunction = val => _gazeMaxDurationJSON.valNoCallback = Mathf.Max(val, _gazeMaxDurationJSON.val);
             _gazeMaxDurationJSON.setCallbackFunction = val => _gazeMinDurationJSON.valNoCallback = Mathf.Min(val, _gazeMinDurationJSON.val);
             _shakeMinDurationJSON.setCallbackFunction = val => _shakeMaxDurationJSON.valNoCallback = Mathf.Max(val, _shakeMaxDurationJSON.val);
             _shakeMaxDurationJSON.setCallbackFunction = val => _shakeMinDurationJSON.valNoCallback = Mathf.Min(val, _shakeMinDurationJSON.val);
+            _debugJSON.setCallbackFunction = SyncLineRenderer;
 
             SuperController.singleton.StartCoroutine(DeferredInit());
         }
@@ -145,6 +156,29 @@ public class Glance : MVRScript
             SuperController.LogError($"{nameof(Glance)}.{nameof(Init)}: {e}");
             enabled = false;
         }
+    }
+
+    private void SyncLineRenderer(bool val)
+    {
+        var exists = _lineRenderer != null;
+        if (!val)
+        {
+            if (exists) Destroy(_lineRenderer.gameObject);
+            _lineRendererPoints = null;
+            return;
+        }
+        if (exists) return;
+        var go = new GameObject("Gaze_LineRenderer");
+        _lineRenderer = go.AddComponent<LineRenderer>();
+        _lineRenderer.useWorldSpace = true;
+        _lineRenderer.material = new Material(Shader.Find("Sprites/Default")) {renderQueue = 4000};
+        _lineRenderer.colorGradient = new Gradient
+        {
+            colorKeys = new[] {new GradientColorKey(Color.cyan, 0f), new GradientColorKey(Color.cyan, 1f)}
+        };
+        _lineRenderer.widthMultiplier = 0.0004f;
+        _lineRenderer.positionCount = 12;
+        _lineRendererPoints = new Vector3[12];
     }
 
     private IEnumerator DeferredInit()
@@ -182,6 +216,8 @@ public class Glance : MVRScript
     {
         try
         {
+            _debugJSON.val = false;
+
             SuperController.singleton.onAtomUIDsChangedHandlers -= ONAtomUIDsChanged;
 
             _eyeTarget.control.position = _eyeTargetRestorePosition;
@@ -400,14 +436,14 @@ public class Glance : MVRScript
         _lockTargetCandidates.Clear();
 
         //var planes = GeometryUtility.CalculateFrustumPlanes(SuperController.singleton.centerCameraTarget.targetCamera);
-        CalculateFrustum(eyesCenter, _head.forward, _frustrumJSON.val * Mathf.Deg2Rad, 1.3f, 0.35f, 100f, _frustrumPlanes);
+        CalculateFrustum(eyesCenter, _head.rotation * _frustrumRotation * Vector3.forward, _frustrumJSON.val * Mathf.Deg2Rad, _frustrumRatioJSON.val, 0.35f, 100f, _frustrumPlanes);
 
         Transform closest = null;
         var closestDistance = float.PositiveInfinity;
         foreach (var o in _objects)
         {
             var position = o.position;
-            var bounds = new Bounds(position, new Vector3(0.25f, 0.25f, 0.25f));
+            var bounds = new Bounds(position, new Vector3(0.001f, 0.001f, 0.001f));
             if (!GeometryUtility.TestPlanesAABB(_frustrumPlanes, bounds)) continue;
             var distance = Vector3.SqrMagnitude(bounds.center - eyesCenter);
             if (distance > _lookAtMirrorDistance) continue;
@@ -484,7 +520,7 @@ public class Glance : MVRScript
     }
 
     // Source: http://answers.unity.com/answers/1024526/view.html
-    private static void CalculateFrustum(Vector3 origin, Vector3 direction, float fovRadians, float viewRatio, float near, float far, Plane[] frustrumPlanes)
+    private void CalculateFrustum(Vector3 origin, Vector3 direction, float fovRadians, float viewRatio, float near, float far, Plane[] frustrumPlanes)
     {
         var nearCenter = origin + direction * near;
         var farCenter = origin + direction * far;
@@ -495,14 +531,10 @@ public class Glance : MVRScript
         var nearWidth = nearHeight * viewRatio;
         var farWidth = farHeight * viewRatio;
         var farTopLeft = farCenter + camUp * (farHeight * 0.5f) - camRight * (farWidth * 0.5f);
-        //not needed; 6 points are sufficient to calculate the frustum
-        //Vector3 farTopRight = farCenter + camUp*(farHeight*0.5f) + camRight*(farWidth*0.5f);
         var farBottomLeft = farCenter - camUp * (farHeight * 0.5f) - camRight * (farWidth * 0.5f);
         var farBottomRight = farCenter - camUp * (farHeight * 0.5f) + camRight * (farWidth * 0.5f);
         var nearTopLeft = nearCenter + camUp * (nearHeight * 0.5f) - camRight * (nearWidth * 0.5f);
         var nearTopRight = nearCenter + camUp * (nearHeight * 0.5f) + camRight * (nearWidth * 0.5f);
-        //not needed; 6 points are sufficient to calculate the frustum
-        //Vector3 nearBottomLeft  = nearCenter - camUp*(nearHeight*0.5f) - camRight*(nearWidth*0.5f);
         var nearBottomRight = nearCenter - camUp * (nearHeight * 0.5f) + camRight * (nearWidth * 0.5f);
         frustrumPlanes[0] = new Plane(nearTopLeft, farTopLeft, farBottomLeft);
         frustrumPlanes[1] = new Plane(nearTopRight, nearBottomRight, farBottomRight);
@@ -510,6 +542,27 @@ public class Glance : MVRScript
         frustrumPlanes[3] = new Plane(farTopLeft, nearTopLeft, nearTopRight);
         frustrumPlanes[4] = new Plane(nearBottomRight, nearTopRight, nearTopLeft);
         frustrumPlanes[5] = new Plane(farBottomRight, farBottomLeft, farTopLeft);
+
+        if (_lineRendererPoints != null)
+        {
+            //not needed; 6 points are sufficient to calculate the frustum
+            var farTopRight = farCenter + camUp*(farHeight*0.5f) + camRight*(farWidth*0.5f);
+            var nearBottomLeft  = nearCenter - camUp*(nearHeight*0.5f) - camRight*(nearWidth*0.5f);
+
+            _lineRendererPoints[0] = farTopLeft;
+            _lineRendererPoints[1] = nearTopLeft;
+            _lineRendererPoints[2] = nearTopRight;
+            _lineRendererPoints[3] = farTopRight;
+            _lineRendererPoints[4] = nearTopRight;
+            _lineRendererPoints[5] = nearBottomRight;
+            _lineRendererPoints[6] = farBottomRight;
+            _lineRendererPoints[7] = nearBottomRight;
+            _lineRendererPoints[8] = nearBottomLeft;
+            _lineRendererPoints[9] = farBottomLeft;
+            _lineRendererPoints[10] = nearBottomLeft;
+            _lineRendererPoints[11] = nearTopLeft;
+            _lineRenderer.SetPositions(_lineRendererPoints);
+        }
     }
 
     private void ONAtomUIDsChanged(List<string> uids)
