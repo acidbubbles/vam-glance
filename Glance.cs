@@ -15,10 +15,10 @@ using Random = UnityEngine.Random;
 public class Glance : MVRScript
 {
     private const float _mirrorScanSpan = 0.5f;
-    private const float _objectScanSpan = 0.1f;
+    private const float _objectScanSpan = 0.08f;
+    private const float _validateExtremesSpan = 0.04f;
     private const float _naturalLookDistance = 0.8f;
     private const float _angularVelocityPredictiveMultiplier = 0.5f;
-    private const float _angularVelocitySqrMagnitudeTrigger = 3f;
 
     private static readonly HashSet<string> _mirrorAtomTypes = new HashSet<string>(new[]
     {
@@ -59,6 +59,8 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _shakeMinDurationJSON = new JSONStorableFloat("ShakeMinDuration", 0.2f, 0f, 1f, false);
     private readonly JSONStorableFloat _shakeMaxDurationJSON = new JSONStorableFloat("ShakeMaxDuration", 0.5f, 0f, 1f, false);
     private readonly JSONStorableFloat _shakeRangeJSON = new JSONStorableFloat("ShakeRange", 0.015f, 0f, 0.1f, true);
+    private readonly JSONStorableFloat _quickTurnThresholdJSON = new JSONStorableFloat("QuickTurnThreshold", 3f, 0f, 10f, false);
+    private readonly JSONStorableFloat _quickTurnCooldownJSON = new JSONStorableFloat("QuickTurnCooldown", 0.5f, 0f, 2f, false);
     private readonly JSONStorableBool _debugJSON = new JSONStorableBool("Debug", false);
     private readonly JSONStorableString _debugDisplayJSON = new JSONStorableString("DebugDisplay", "");
 
@@ -69,6 +71,8 @@ public class Glance : MVRScript
     private DAZMeshEyelidControl _eyelidBehavior;
     private Transform _head;
     private Transform _lEye;
+    private LookAtWithLimits _lEyeLimits;
+    private LookAtWithLimits _rEyeLimits;
     private Transform _rEye;
     private Rigidbody _headRB;
     private FreeControllerV3 _eyeTarget;
@@ -79,11 +83,12 @@ public class Glance : MVRScript
     private EyesControl.LookMode _eyeBehaviorRestoreLookMode;
     private bool _blinkRestoreEnabled;
     private readonly Plane[] _frustrumPlanes = new Plane[6];
-    private readonly List<EyeTargetReference> _lockTargetCandidates = new List<EyeTargetReference>();
+    private readonly List<Transform> _lockTargetCandidates = new List<Transform>();
     private float _nextMirrorScanTime;
     private BoxCollider _lookAtMirror;
     private float _lookAtMirrorDistance;
     private float _nextObjectsScanTime;
+    private float _nextValidateExtremesTime;
     private float _nextLockTargetTime;
     private Transform _lockTarget;
     private float _nextShakeTime;
@@ -109,8 +114,12 @@ public class Glance : MVRScript
             _eyelidBehavior = (DAZMeshEyelidControl) containingAtom.GetStorableByID("EyelidControl");
             _bones = containingAtom.transform.Find("rescale2").GetComponentsInChildren<DAZBone>();
             _head = _bones.First(eye => eye.name == "head").transform;
-            _lEye = _bones.First(eye => eye.name == "lEye").transform;
-            _rEye = _bones.First(eye => eye.name == "rEye").transform;
+            var lEyeBone = _bones.First(eye => eye.name == "lEye");
+            _lEye = lEyeBone.transform;
+            _lEyeLimits = lEyeBone.GetComponent<LookAtWithLimits>();
+            var rEyeBone = _bones.First(eye => eye.name == "rEye");
+            _rEye = rEyeBone.transform;
+            _rEyeLimits = rEyeBone.GetComponent<LookAtWithLimits>();
             _headRB = _head.GetComponent<Rigidbody>();
             _eyeTarget = containingAtom.freeControllers.First(fc => fc.name == "eyeTargetControl");
 
@@ -134,6 +143,8 @@ public class Glance : MVRScript
             CreateSlider(_shakeMinDurationJSON, true).label = "Min eye saccade time";
             CreateSlider(_shakeMaxDurationJSON, true).label = "Max eye saccade time";
             CreateSlider(_shakeRangeJSON, true).label = "Range of eye saccade";
+            CreateSlider(_quickTurnThresholdJSON, true).label = "Quick turn threshold";
+            CreateSlider(_quickTurnCooldownJSON, true).label = "Quick turn cooldown";
 
             RegisterBool(_trackPlayerJSON);
             RegisterBool(_trackMirrorsJSON);
@@ -152,6 +163,8 @@ public class Glance : MVRScript
             RegisterFloat(_shakeMinDurationJSON);
             RegisterFloat(_shakeMaxDurationJSON);
             RegisterFloat(_shakeRangeJSON);
+            RegisterFloat(_quickTurnThresholdJSON);
+            RegisterFloat(_quickTurnCooldownJSON);
 
             _trackPlayerJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _trackMirrorsJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
@@ -244,7 +257,7 @@ public class Glance : MVRScript
             _eyeTarget.control.position = _eyeTargetRestorePosition;
             if (_eyeBehavior.currentLookMode != EyesControl.LookMode.Target)
                 _eyeBehavior.currentLookMode = _eyeBehaviorRestoreLookMode;
-            _eyelidBehavior.SetBoolParamValue("blinkEnabled", _blinkRestoreEnabled);;
+            _eyelidBehavior.SetBoolParamValue("blinkEnabled", _blinkRestoreEnabled);
 
             ClearState();
         }
@@ -351,6 +364,7 @@ public class Glance : MVRScript
         _lockTargetCandidates.Clear();
         _nextMirrorScanTime = 0f;
         _nextObjectsScanTime = 0f;
+        _nextValidateExtremesTime = 0f;
         _nextLockTargetTime = 0f;
         _nextShakeTime = 0f;
         _shakeValue = Vector3.zero;
@@ -365,6 +379,7 @@ public class Glance : MVRScript
 
         ScanMirrors(eyesCenter);
         ScanObjects(eyesCenter);
+        InvalidateExtremes();
         SelectLockTarget();
         SelectShake();
 
@@ -383,6 +398,64 @@ public class Glance : MVRScript
 
         SelectGazeTarget(eyesCenter);
         _eyeTarget.control.position = _gazeTarget + _shakeValue;
+    }
+
+    private void InvalidateExtremes()
+    {
+        if (_nextValidateExtremesTime > Time.time) return;
+        _nextValidateExtremesTime = Time.time + _validateExtremesSpan;
+
+        if (AreEyesInRange()) return;
+
+        // TODO: Doesn't seem to be called in practice?
+        _nextGazeTime = 0f;
+        _nextLockTargetTime = 0f;
+        _angularVelocityBurstCooldown = _quickTurnCooldownJSON.val;
+    }
+
+    private bool AreEyesInRange()
+    {
+        if (!IsEyeInRange(_lEye, _lEyeLimits)) return false;
+        if (!IsEyeInRange(_rEye, _rEyeLimits)) return false;
+        return true;
+    }
+
+    private bool IsEyeInRange(Transform eye, LookAtWithLimits limits)
+    {
+        var angles = eye.localEulerAngles;
+        var y = angles.y;
+        if (y < 180)
+        {
+            if (Mathf.Abs(y - limits.MaxRight) < 0.1f)
+                return false;
+        }
+        else if (Mathf.Abs(360 - y - limits.MaxLeft) < 0.1f)
+        {
+            return false;
+        }
+
+        var x = angles.x;
+        if (x < 180)
+        {
+            if (Mathf.Abs(x - limits.MaxDown) < 1f)
+                return false;
+        }
+        else if (Mathf.Abs(360 - x - limits.MaxUp) < 1f)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool IsInAngleRange(Vector3 eyesCenter, Vector3 targetPosition)
+    {
+        var lookAngle = _head.InverseTransformDirection(targetPosition - eyesCenter);
+        var yaw = Vector3.Angle(Vector3.ProjectOnPlane(lookAngle, Vector3.up), Vector3.forward);
+        if (yaw > 26) return false;
+        var pitch = Vector3.Angle(Vector3.ProjectOnPlane(lookAngle, Vector3.right), Vector3.forward);
+        if (pitch > 20) return false;
+        return true;
     }
 
     private Vector3 ComputeMirrorLookback(Vector3 eyesCenter)
@@ -405,9 +478,9 @@ public class Glance : MVRScript
             _angularVelocityBurstCooldown = 0f;
         }
 
-        if (_headRB.angularVelocity.sqrMagnitude > _angularVelocitySqrMagnitudeTrigger)
+        if (_headRB.angularVelocity.sqrMagnitude > _quickTurnThresholdJSON.val)
         {
-            _angularVelocityBurstCooldown = Time.time + 0.5f;
+            _angularVelocityBurstCooldown = Time.time + _quickTurnCooldownJSON.val;
             _nextGazeTime = 0f;
             _eyelidBehavior.Blink();
         }
@@ -435,7 +508,7 @@ public class Glance : MVRScript
         _nextLockTargetTime = Time.time + Random.Range(_gazeMinDurationJSON.val, _gazeMaxDurationJSON.val);
 
         _lockTarget = _lockTargetCandidates.Count > 0
-            ? _lockTargetCandidates[Random.Range(0, _lockTargetCandidates.Count)].transform
+            ? _lockTargetCandidates[Random.Range(0, _lockTargetCandidates.Count)]
             : null;
 
         if (_debugJSON.val && UITransform.gameObject.activeInHierarchy) UpdateDebugDisplay();
@@ -503,11 +576,8 @@ public class Glance : MVRScript
             if (!GeometryUtility.TestPlanesAABB(_frustrumPlanes, bounds)) continue;
             var distance = Vector3.SqrMagnitude(bounds.center - eyesCenter);
             if (distance > _lookAtMirrorDistance) continue;
-            _lockTargetCandidates.Add(new EyeTargetReference
-            {
-                transform = o,
-                distance = distance
-            });
+            if (!IsInAngleRange(eyesCenter, position)) continue;
+            _lockTargetCandidates.Add(o);
             if (distance < closestDistance)
             {
                 closestDistance = distance;
@@ -637,11 +707,5 @@ public class Glance : MVRScript
     {
         base.RestoreFromJSON(jc, restorePhysical, restoreAppearance, presetAtoms, setMissingToDefault);
             _restored = true;
-    }
-
-    private struct EyeTargetReference
-    {
-        public float distance;
-        public Transform transform;
     }
 }
