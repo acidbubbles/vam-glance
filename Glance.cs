@@ -409,6 +409,7 @@ public class Glance : MVRScript
         {
             _angularVelocityBurstCooldown = Time.time + 0.5f;
             _nextGazeTime = 0f;
+            _eyelidBehavior.Blink();
         }
 
         if (_nextGazeTime > Time.time) return;
