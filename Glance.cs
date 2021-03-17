@@ -66,6 +66,7 @@ public class Glance : MVRScript
     private bool _restored;
     private DAZBone[] _bones;
     private EyesControl _eyeBehavior;
+    private DAZMeshEyelidControl _eyelidBehavior;
     private Transform _head;
     private Transform _lEye;
     private Transform _rEye;
@@ -76,6 +77,7 @@ public class Glance : MVRScript
     private readonly List<Transform> _objects = new List<Transform>();
     private Vector3 _eyeTargetRestorePosition;
     private EyesControl.LookMode _eyeBehaviorRestoreLookMode;
+    private bool _blinkRestoreEnabled;
     private readonly Plane[] _frustrumPlanes = new Plane[6];
     private readonly List<EyeTargetReference> _lockTargetCandidates = new List<EyeTargetReference>();
     private float _nextMirrorScanTime;
@@ -104,6 +106,7 @@ public class Glance : MVRScript
         try
         {
             _eyeBehavior = (EyesControl) containingAtom.GetStorableByID("Eyes");
+            _eyelidBehavior = (DAZMeshEyelidControl) containingAtom.GetStorableByID("EyelidControl");
             _bones = containingAtom.transform.Find("rescale2").GetComponentsInChildren<DAZBone>();
             _head = _bones.First(eye => eye.name == "head").transform;
             _lEye = _bones.First(eye => eye.name == "lEye").transform;
@@ -218,8 +221,9 @@ public class Glance : MVRScript
 
             _eyeTargetRestorePosition = _eyeTarget.control.position;
             _eyeBehaviorRestoreLookMode = _eyeBehavior.currentLookMode;
-
             _eyeBehavior.currentLookMode = EyesControl.LookMode.Target;
+
+            _blinkRestoreEnabled = _eyelidBehavior.GetBoolParamValue("blinkEnabled");
 
             SuperController.singleton.onAtomUIDsChangedHandlers += ONAtomUIDsChanged;
         }
@@ -240,6 +244,7 @@ public class Glance : MVRScript
             _eyeTarget.control.position = _eyeTargetRestorePosition;
             if (_eyeBehavior.currentLookMode != EyesControl.LookMode.Target)
                 _eyeBehavior.currentLookMode = _eyeBehaviorRestoreLookMode;
+            _eyelidBehavior.SetBoolParamValue("blinkEnabled", _blinkRestoreEnabled);;
 
             ClearState();
         }
