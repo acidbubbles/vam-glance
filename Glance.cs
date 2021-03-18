@@ -43,20 +43,20 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _personsFeetWeightJSON = new JSONStorableFloat("PersonsFeetWeight", 0f, 0f, 1f, true);
     private readonly JSONStorableFloat _objectsWeightJSON = new JSONStorableFloat("ObjectsWeight", 0f, 0f, 1f, true);
     private readonly JSONStorableFloat _nothingWeightJSON = new JSONStorableFloat("NothingWeight", 0f, 0f, 1f, true);
-    private readonly JSONStorableFloat _frustrumJSON = new JSONStorableFloat("FrustrumFOV", 20f, 0f, 45f, true);
+    private readonly JSONStorableFloat _frustrumJSON = new JSONStorableFloat("FrustrumFOV", 25f, 0f, 45f, true);
     private readonly JSONStorableFloat _frustrumRatioJSON = new JSONStorableFloat("FrustrumRatio", 1.4f, 0.5f, 2f, true);
     private readonly JSONStorableFloat _frustrumRotateJSON = new JSONStorableFloat("FrustrumRotate", -5f, -45f, 45f, true);
     private readonly JSONStorableFloat _frustrumNearJSON = new JSONStorableFloat("FrustrumNear", 0.1f, 0f, 5f, false);
     private readonly JSONStorableFloat _frustrumFarJSON = new JSONStorableFloat("FrustrumFar", 5f, 0f, 5f, false);
-    private readonly JSONStorableFloat _gazeMinDurationJSON = new JSONStorableFloat("GazeMinDuration", 0.5f, 0f, 10f, false);
-    private readonly JSONStorableFloat _gazeMaxDurationJSON = new JSONStorableFloat("GazeMaxDuration", 2f, 0f, 10f, false);
-    private readonly JSONStorableFloat _shakeMinDurationJSON = new JSONStorableFloat("ShakeMinDuration", 0.2f, 0f, 1f, false);
-    private readonly JSONStorableFloat _shakeMaxDurationJSON = new JSONStorableFloat("ShakeMaxDuration", 0.5f, 0f, 1f, false);
-    private readonly JSONStorableFloat _shakeRangeJSON = new JSONStorableFloat("ShakeRange", 0.015f, 0f, 0.1f, true);
+    private readonly JSONStorableFloat _lockMinDurationJSON = new JSONStorableFloat("GazeMinDuration", 0.5f, 0f, 10f, false);
+    private readonly JSONStorableFloat _lockMaxDurationJSON = new JSONStorableFloat("GazeMaxDuration", 2f, 0f, 10f, false);
+    private readonly JSONStorableFloat _saccadeMinDurationJSON = new JSONStorableFloat("ShakeMinDuration", 0.2f, 0f, 1f, false);
+    private readonly JSONStorableFloat _saccadeMaxDurationJSON = new JSONStorableFloat("ShakeMaxDuration", 0.5f, 0f, 1f, false);
+    private readonly JSONStorableFloat _saccadeRangeJSON = new JSONStorableFloat("ShakeRange", 0.015f, 0f, 0.1f, true);
     private readonly JSONStorableFloat _quickTurnThresholdJSON = new JSONStorableFloat("QuickTurnThreshold", 3f, 0f, 10f, false);
     private readonly JSONStorableFloat _quickTurnCooldownJSON = new JSONStorableFloat("QuickTurnCooldown", 0.5f, 0f, 2f, false);
-    private readonly JSONStorableFloat _blinkSpaceMinJSON = new JSONStorableFloat("BlinkTimeMin", 1f, 0f, 10f, false);
-    private readonly JSONStorableFloat _blinkSpaceMaxJSON = new JSONStorableFloat("BlinkTimeMax", 7f, 0f, 10f, false);
+    private readonly JSONStorableFloat _blinkSpaceMinJSON = new JSONStorableFloat("BlinkSpaceMin", 1f, 0f, 10f, false);
+    private readonly JSONStorableFloat _blinkSpaceMaxJSON = new JSONStorableFloat("BlinkSpaceMax", 7f, 0f, 10f, false);
     private readonly JSONStorableFloat _blinkTimeMinJSON = new JSONStorableFloat("BlinkTimeMin", 0.1f, 0f, 2f, false);
     private readonly JSONStorableFloat _blinkTimeMaxJSON = new JSONStorableFloat("BlinkTimeMax", 0.4f, 0f, 2f, false);
     private readonly JSONStorableFloat _cameraMouthDistanceJSON = new JSONStorableFloat("CameraMouthEyesDistance", 0.053f, 0f, 0.1f, false);
@@ -92,8 +92,8 @@ public class Glance : MVRScript
     private float _nextValidateExtremesTime;
     private float _nextLockTargetTime;
     private Transform _lockTarget;
-    private float _nextShakeTime;
-    private Vector3 _shakeValue;
+    private float _nextSaccadeTime;
+    private Vector3 _saccadeOffset;
     private float _nextGazeTime;
     private Vector3 _gazeTarget;
     private float _angularVelocityBurstCooldown;
@@ -148,12 +148,63 @@ public class Glance : MVRScript
 
             var presetsJSON = new JSONStorableStringChooser("Presets", new List<string>
             {
-                ""
+                "Defaults",
+                "Horny",
+                "Shy",
+                "Focused",
             }, "", "Apply preset");
             CreateScrollablePopup(presetsJSON, true);
             presetsJSON.setCallbackFunction = val =>
             {
+                presetsJSON.valNoCallback = "";
                 ResetToDefaults();
+                switch (val)
+                {
+                    case "Horny":
+                        _playerMouthWeightJSON.val = 0.5f;
+                        _personsMouthWeightJSON.val = 0.5f;
+                        _personsChestWeightJSON.val = 0.5f;
+                        _personsNipplesWeightJSON.val = 0.5f;
+                        _personsGenitalsWeightJSON.val = 0.8f;
+                        _lockMinDurationJSON.val = 0.4f;
+                        _lockMaxDurationJSON.val = 1.2f;
+                        _saccadeMinDurationJSON.val = 0.1f;
+                        _saccadeMaxDurationJSON.val = 0.4f;
+                        _saccadeRangeJSON.val = 0.015f;
+                        _blinkTimeMinJSON.val = 0.1f;
+                        _blinkTimeMaxJSON.val = 0.2f;
+                        _blinkSpaceMinJSON.val = 0.8f;
+                        _blinkSpaceMaxJSON.val = 3f;
+                        break;
+                    case "Shy":
+                        _frustrumJSON.val = 16f;
+                        _playerEyesWeightJSON.val = 0.2f;
+                        _personsEyesWeightJSON.val = 0.2f;
+                        _nothingWeightJSON.val = 0.4f;
+                        _lockMinDurationJSON.val = 0.4f;
+                        _lockMaxDurationJSON.val = 1.2f;
+                        _saccadeMinDurationJSON.val = 0.1f;
+                        _saccadeMaxDurationJSON.val = 0.4f;
+                        _saccadeRangeJSON.val = 0.025f;
+                        _blinkTimeMinJSON.val = 0.1f;
+                        _blinkTimeMaxJSON.val = 0.4f;
+                        _blinkSpaceMinJSON.val = 0.5f;
+                        _blinkSpaceMaxJSON.val = 4f;
+                        break;
+                    case "Focused":
+                        _playerMouthWeightJSON.val = 0.1f;
+                        _personsMouthWeightJSON.val = 0.1f;
+                        _lockMinDurationJSON.val = 2f;
+                        _lockMaxDurationJSON.val = 4f;
+                        _saccadeMinDurationJSON.val = 0.8f;
+                        _saccadeMaxDurationJSON.val = 1.4f;
+                        _saccadeRangeJSON.val = 0.01f;
+                        _blinkTimeMinJSON.val = 0.2f;
+                        _blinkTimeMaxJSON.val = 0.3f;
+                        _blinkSpaceMinJSON.val = 4f;
+                        _blinkSpaceMaxJSON.val = 8f;
+                        break;
+                }
             };
 
             CreateSlider(_frustrumJSON, true, "Frustrum field of view", "F3");
@@ -161,11 +212,11 @@ public class Glance : MVRScript
             CreateSlider(_frustrumRotateJSON, true, "Frustrum rotation (tilt)", "F3");
             CreateSlider(_frustrumNearJSON, true, "Frustrum near (closest)", "F3");
             CreateSlider(_frustrumFarJSON, true, "Frustrum far (furthest)", "F3");
-            CreateSlider(_gazeMinDurationJSON, true, "Min target lock time", "F3");
-            CreateSlider(_gazeMaxDurationJSON, true, "Max target lock time", "F3");
-            CreateSlider(_shakeMinDurationJSON, true, "Min eye saccade time", "F4");
-            CreateSlider(_shakeMaxDurationJSON, true, "Max eye saccade time", "F4");
-            CreateSlider(_shakeRangeJSON, true, "Range of eye saccade", "F4");
+            CreateSlider(_lockMinDurationJSON, true, "Min target lock time", "F3");
+            CreateSlider(_lockMaxDurationJSON, true, "Max target lock time", "F3");
+            CreateSlider(_saccadeMinDurationJSON, true, "Min eye saccade time", "F4");
+            CreateSlider(_saccadeMaxDurationJSON, true, "Max eye saccade time", "F4");
+            CreateSlider(_saccadeRangeJSON, true, "Range of eye saccade", "F4");
             CreateSlider(_quickTurnThresholdJSON, true, "Quick turn threshold", "F3");
             CreateSlider(_quickTurnCooldownJSON, true, "Quick turn cooldown", "F3");
             CreateSlider(_blinkSpaceMinJSON, true, "Blink space min", "F2");
@@ -195,11 +246,11 @@ public class Glance : MVRScript
             RegisterFloat(_frustrumRotateJSON);
             RegisterFloat(_frustrumNearJSON);
             RegisterFloat(_frustrumFarJSON);
-            RegisterFloat(_gazeMinDurationJSON);
-            RegisterFloat(_gazeMaxDurationJSON);
-            RegisterFloat(_shakeMinDurationJSON);
-            RegisterFloat(_shakeMaxDurationJSON);
-            RegisterFloat(_shakeRangeJSON);
+            RegisterFloat(_lockMinDurationJSON);
+            RegisterFloat(_lockMaxDurationJSON);
+            RegisterFloat(_saccadeMinDurationJSON);
+            RegisterFloat(_saccadeMaxDurationJSON);
+            RegisterFloat(_saccadeRangeJSON);
             RegisterFloat(_quickTurnThresholdJSON);
             RegisterFloat(_quickTurnCooldownJSON);
             RegisterFloat(_blinkSpaceMinJSON);
@@ -227,10 +278,10 @@ public class Glance : MVRScript
             _frustrumRotateJSON.setCallbackFunction = val => _frustrumRotation = Quaternion.Euler(_frustrumRotateJSON.val, 0f, 0f);
             _frustrumNearJSON.setCallbackFunction = val => _frustrumFarJSON.valNoCallback = Mathf.Max(val, _frustrumFarJSON.val);
             _frustrumFarJSON.setCallbackFunction = val => _frustrumNearJSON.valNoCallback = Mathf.Min(val, _frustrumNearJSON.val);
-            _gazeMinDurationJSON.setCallbackFunction = val => _gazeMaxDurationJSON.valNoCallback = Mathf.Max(val, _gazeMaxDurationJSON.val);
-            _gazeMaxDurationJSON.setCallbackFunction = val => _gazeMinDurationJSON.valNoCallback = Mathf.Min(val, _gazeMinDurationJSON.val);
-            _shakeMinDurationJSON.setCallbackFunction = val => _shakeMaxDurationJSON.valNoCallback = Mathf.Max(val, _shakeMaxDurationJSON.val);
-            _shakeMaxDurationJSON.setCallbackFunction = val => _shakeMinDurationJSON.valNoCallback = Mathf.Min(val, _shakeMinDurationJSON.val);
+            _lockMinDurationJSON.setCallbackFunction = val => _lockMaxDurationJSON.valNoCallback = Mathf.Max(val, _lockMaxDurationJSON.val);
+            _lockMaxDurationJSON.setCallbackFunction = val => _lockMinDurationJSON.valNoCallback = Mathf.Min(val, _lockMinDurationJSON.val);
+            _saccadeMinDurationJSON.setCallbackFunction = val => _saccadeMaxDurationJSON.valNoCallback = Mathf.Max(val, _saccadeMaxDurationJSON.val);
+            _saccadeMaxDurationJSON.setCallbackFunction = val => _saccadeMinDurationJSON.valNoCallback = Mathf.Min(val, _saccadeMinDurationJSON.val);
             _blinkSpaceMinJSON.setCallbackFunction = val => _eyelidBehavior.blinkSpaceMin = val;
             _blinkSpaceMaxJSON.setCallbackFunction = val => _eyelidBehavior.blinkSpaceMax = val;
             _blinkTimeMinJSON.setCallbackFunction = val => _eyelidBehavior.blinkTimeMin = val;
@@ -270,11 +321,11 @@ public class Glance : MVRScript
         _frustrumRotateJSON.SetValToDefault();
         _frustrumNearJSON.SetValToDefault();
         _frustrumFarJSON.SetValToDefault();
-        _gazeMinDurationJSON.SetValToDefault();
-        _gazeMaxDurationJSON.SetValToDefault();
-        _shakeMinDurationJSON.SetValToDefault();
-        _shakeMaxDurationJSON.SetValToDefault();
-        _shakeRangeJSON.SetValToDefault();
+        _lockMinDurationJSON.SetValToDefault();
+        _lockMaxDurationJSON.SetValToDefault();
+        _saccadeMinDurationJSON.SetValToDefault();
+        _saccadeMaxDurationJSON.SetValToDefault();
+        _saccadeRangeJSON.SetValToDefault();
         _quickTurnThresholdJSON.SetValToDefault();
         _quickTurnCooldownJSON.SetValToDefault();
         _cameraMouthDistanceJSON.SetValToDefault();
@@ -533,8 +584,8 @@ public class Glance : MVRScript
         _nextObjectsScanTime = 0f;
         _nextValidateExtremesTime = 0f;
         _nextLockTargetTime = 0f;
-        _nextShakeTime = 0f;
-        _shakeValue = Vector3.zero;
+        _nextSaccadeTime = 0f;
+        _saccadeOffset = Vector3.zero;
         _nextGazeTime = 0f;
         _gazeTarget = Vector3.zero;
         _angularVelocityBurstCooldown = 0f;
@@ -548,23 +599,23 @@ public class Glance : MVRScript
         ScanObjects(eyesCenter);
         InvalidateExtremes();
         SelectLockTarget();
-        SelectShake();
+        SelectSaccade();
 
         if (!ReferenceEquals(_lockTarget, null))
         {
-            _eyeTarget.control.position = _lockTarget.transform.position + _shakeValue;
+            _eyeTarget.control.position = _lockTarget.transform.position + _saccadeOffset;
             return;
         }
 
         if (!ReferenceEquals(_lookAtMirror, null))
         {
             var reflectPosition = ComputeMirrorLookback(eyesCenter);
-            _eyeTarget.control.position = reflectPosition + _shakeValue;
+            _eyeTarget.control.position = reflectPosition + _saccadeOffset;
             return;
         }
 
         SelectGazeTarget(eyesCenter);
-        _eyeTarget.control.position = _gazeTarget + _shakeValue;
+        _eyeTarget.control.position = _gazeTarget + _saccadeOffset;
     }
 
     private void InvalidateExtremes()
@@ -653,7 +704,7 @@ public class Glance : MVRScript
         }
 
         if (_nextGazeTime > Time.time) return;
-        _nextGazeTime = Time.time + Random.Range(_gazeMinDurationJSON.val, _gazeMaxDurationJSON.val);
+        _nextGazeTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
 
         var localAngularVelocity = transform.InverseTransformDirection(_headRB.angularVelocity);
         var angularVelocity = Quaternion.Euler(localAngularVelocity * Mathf.Rad2Deg * _angularVelocityPredictiveMultiplier);
@@ -661,12 +712,12 @@ public class Glance : MVRScript
         _gazeTarget = eyesCenter + (_head.rotation * _frustrumRotation * angularVelocity * Vector3.forward) * _naturalLookDistance;
     }
 
-    private void SelectShake()
+    private void SelectSaccade()
     {
-        if (_nextShakeTime > Time.time) return;
-        _nextShakeTime = Time.time + Random.Range(_shakeMinDurationJSON.val, _shakeMaxDurationJSON.val);
+        if (_nextSaccadeTime > Time.time) return;
+        _nextSaccadeTime = Time.time + Random.Range(_saccadeMinDurationJSON.val, _saccadeMaxDurationJSON.val);
 
-        _shakeValue = Random.insideUnitSphere * _shakeRangeJSON.val;
+        _saccadeOffset = _head.rotation * (new Vector3(Random.value, Random.value, 0f) * _saccadeRangeJSON.val);
     }
 
     private void SelectLockTarget()
@@ -695,14 +746,14 @@ public class Glance : MVRScript
                 if (lockRoll < sum) break;
             }
             _lockTarget = lockTarget.transform;
-            var gazeDuration = (_gazeMaxDurationJSON.val - _gazeMinDurationJSON.val) * lockTarget.weight;
-            _nextLockTargetTime = Time.time + Random.Range(_gazeMinDurationJSON.val, _gazeMinDurationJSON.val + gazeDuration);
+            var gazeDuration = (_lockMaxDurationJSON.val - _lockMinDurationJSON.val) * lockTarget.weight;
+            _nextLockTargetTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMinDurationJSON.val + gazeDuration);
         }
 
         if (_debugJSON.val && UITransform.gameObject.activeInHierarchy) UpdateDebugDisplay();
 
-        _shakeValue = Vector3.zero;
-        _nextShakeTime = Time.time + Random.Range(_shakeMinDurationJSON.val, _shakeMaxDurationJSON.val);
+        _saccadeOffset = Vector3.zero;
+        _nextSaccadeTime = Time.time + Random.Range(_saccadeMinDurationJSON.val, _saccadeMaxDurationJSON.val);
     }
 
     private void UpdateDebugDisplay()
@@ -793,7 +844,7 @@ public class Glance : MVRScript
             if (_lockTargetCandidates.Count > 0)
             {
                 _lockTarget = closest;
-                _nextLockTargetTime = Time.time + Random.Range(_gazeMinDurationJSON.val, _gazeMaxDurationJSON.val);
+                _nextLockTargetTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
             }
             else
             {
