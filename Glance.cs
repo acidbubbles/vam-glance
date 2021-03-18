@@ -48,11 +48,11 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _frustrumTiltJSON = new JSONStorableFloat("FrustrumTilt", -5f, -45f, 45f, true);
     private readonly JSONStorableFloat _frustrumNearJSON = new JSONStorableFloat("FrustrumNear", 0.1f, 0f, 5f, false);
     private readonly JSONStorableFloat _frustrumFarJSON = new JSONStorableFloat("FrustrumFar", 5f, 0f, 5f, false);
-    private readonly JSONStorableFloat _lockMinDurationJSON = new JSONStorableFloat("GazeMinDuration", 0.5f, 0f, 10f, false);
-    private readonly JSONStorableFloat _lockMaxDurationJSON = new JSONStorableFloat("GazeMaxDuration", 2f, 0f, 10f, false);
-    private readonly JSONStorableFloat _saccadeMinDurationJSON = new JSONStorableFloat("ShakeMinDuration", 0.2f, 0f, 1f, false);
-    private readonly JSONStorableFloat _saccadeMaxDurationJSON = new JSONStorableFloat("ShakeMaxDuration", 0.5f, 0f, 1f, false);
-    private readonly JSONStorableFloat _saccadeRangeJSON = new JSONStorableFloat("ShakeRange", 0.015f, 0f, 0.1f, true);
+    private readonly JSONStorableFloat _lockMinDurationJSON = new JSONStorableFloat("LockMinDuration", 0.5f, 0f, 10f, false);
+    private readonly JSONStorableFloat _lockMaxDurationJSON = new JSONStorableFloat("LockMaxDuration", 2f, 0f, 10f, false);
+    private readonly JSONStorableFloat _saccadeMinDurationJSON = new JSONStorableFloat("SaccadeMinDuration", 0.2f, 0f, 1f, false);
+    private readonly JSONStorableFloat _saccadeMaxDurationJSON = new JSONStorableFloat("SaccadeMaxDuration", 0.5f, 0f, 1f, false);
+    private readonly JSONStorableFloat _saccadeRangeJSON = new JSONStorableFloat("SaccadeRange", 0.015f, 0f, 0.1f, true);
     private readonly JSONStorableFloat _quickTurnThresholdJSON = new JSONStorableFloat("QuickTurnThreshold", 3f, 0f, 10f, false);
     private readonly JSONStorableFloat _quickTurnCooldownJSON = new JSONStorableFloat("QuickTurnCooldown", 0.5f, 0f, 2f, false);
     private readonly JSONStorableFloat _unlockedTiltJSON = new JSONStorableFloat("UnlockedTilt", 10f, -30f, 30f, false);
@@ -60,7 +60,7 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _blinkSpaceMaxJSON = new JSONStorableFloat("BlinkSpaceMax", 7f, 0f, 10f, false);
     private readonly JSONStorableFloat _blinkTimeMinJSON = new JSONStorableFloat("BlinkTimeMin", 0.1f, 0f, 2f, false);
     private readonly JSONStorableFloat _blinkTimeMaxJSON = new JSONStorableFloat("BlinkTimeMax", 0.4f, 0f, 2f, false);
-    private readonly JSONStorableFloat _cameraMouthDistanceJSON = new JSONStorableFloat("CameraMouthEyesDistance", 0.053f, 0f, 0.1f, false);
+    private readonly JSONStorableFloat _cameraMouthDistanceJSON = new JSONStorableFloat("CameraMouthDistance", 0.053f, 0f, 0.1f, false);
     private readonly JSONStorableFloat _cameraEyesDistanceJSON = new JSONStorableFloat("CameraEyesDistance", 0.015f, 0f, 0.1f, false);
     private readonly JSONStorableBool _debugJSON = new JSONStorableBool("Debug", false);
     private readonly JSONStorableString _debugDisplayJSON = new JSONStorableString("DebugDisplay", "");
