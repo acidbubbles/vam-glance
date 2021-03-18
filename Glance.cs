@@ -16,7 +16,7 @@ public class Glance : MVRScript
 {
     private const float _mirrorScanSpan = 0.5f;
     private const float _objectScanSpan = 0.08f;
-    private const float _windowCameraSpan = 2.19f;
+    private const float _windowCameraCheckSpan = 2.19f;
     private const float _validateExtremesSpan = 0.04f;
     private const float _naturalLookDistance = 0.8f;
     private const float _angularVelocityPredictiveMultiplier = 0.5f;
@@ -504,6 +504,10 @@ public class Glance : MVRScript
     {
         _objects.Clear();
         _windowCameraInObjects = false;
+        _nextObjectsScanTime = 0f;
+        _nextLockTargetTime = 0f;
+        _nextMirrorScanTime = 0f;
+        _nextWindowCameraCheckTime = _windowCameraCheckSpan;
 
         if (_playerEyesWeightJSON.val >= 0.01f)
         {
@@ -676,7 +680,7 @@ public class Glance : MVRScript
     private void CheckWindowCamera()
     {
         if (_nextWindowCameraCheckTime > Time.time) return;
-        _nextWindowCameraCheckTime = Time.time + _windowCameraSpan;
+        _nextWindowCameraCheckTime = Time.time + _windowCameraCheckSpan;
 
         if (!(_windowCameraWeightJSON.val >= 0.01)) return;
 
@@ -779,8 +783,8 @@ public class Glance : MVRScript
         {
             _angularVelocityBurstCooldown = Time.time + _quickTurnCooldownJSON.val;
             _nextGazeTime = 0f;
-            _nextObjectsScanTime = 0.2f;
-            _nextLockTargetTime = 0.2f;
+            _nextObjectsScanTime = 0.1f;
+            _nextLockTargetTime = 0.1f;
             _nextValidateExtremesTime = 0.1f;
             _eyelidBehavior.Blink();
         }
@@ -873,11 +877,11 @@ public class Glance : MVRScript
         if (_nextObjectsScanTime > Time.time) return;
         _nextObjectsScanTime = Time.time + _objectScanSpan;
 
-        if (_objects.Count == 0) return;
-
         var originalCount = _lockTargetCandidates.Count;
         _lockTargetCandidates.Clear();
         _lockTargetCandidatesScoreSum = 0f;
+
+        if (_objects.Count == 0) return;
 
         //var planes = GeometryUtility.CalculateFrustumPlanes(SuperController.singleton.centerCameraTarget.targetCamera);
         CalculateFrustum(eyesCenter, _head.rotation * _frustrumTilt * Vector3.forward, _frustrumJSON.val * Mathf.Deg2Rad, _frustrumRatioJSON.val, _frustrumNearJSON.val, _frustrumFarJSON.val, _frustrumPlanes);
