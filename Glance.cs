@@ -98,8 +98,10 @@ public class Glance : MVRScript
     private Vector3 _gazeTarget;
     private float _angularVelocityBurstCooldown;
     private readonly StringBuilder _debugDisplaySb = new StringBuilder();
-    private LineRenderer _lineRenderer;
-    private Vector3[] _lineRendererPoints;
+    private LineRenderer _frustrumLineRenderer;
+    private LineRenderer _lockLineRenderer;
+    private Vector3[] _frustrumLinePoints;
+    private Vector3[] _lockLinePoints;
     private Transform _cameraMouth;
     private Transform _cameraLEye;
     private Transform _cameraREye;
@@ -345,25 +347,40 @@ public class Glance : MVRScript
 
     private void SyncLineRenderer(bool val)
     {
-        var exists = _lineRenderer != null;
         if (!val)
         {
-            if (exists) Destroy(_lineRenderer.gameObject);
-            _lineRendererPoints = null;
+            if (_lockLineRenderer != null) Destroy(_lockLineRenderer.gameObject);
+            _lockLinePoints = null;
+            if (_frustrumLineRenderer != null) Destroy(_frustrumLineRenderer.gameObject);
+            _frustrumLinePoints = null;
             return;
         }
-        if (exists) return;
-        var go = new GameObject("Gaze_LineRenderer");
-        _lineRenderer = go.AddComponent<LineRenderer>();
-        _lineRenderer.useWorldSpace = true;
-        _lineRenderer.material = new Material(Shader.Find("Sprites/Default")) {renderQueue = 4000};
-        _lineRenderer.colorGradient = new Gradient
+
+        if (_frustrumLineRenderer != null) return;
+
+        var lockLineGo = new GameObject("Gaze_Debug_Lock");
+        _lockLineRenderer = lockLineGo.AddComponent<LineRenderer>();
+        _lockLineRenderer.useWorldSpace = true;
+        _lockLineRenderer.material = new Material(Shader.Find("Sprites/Default")) {renderQueue = 4000};
+        _lockLineRenderer.colorGradient = new Gradient
+        {
+            colorKeys = new[] {new GradientColorKey(Color.green, 0f), new GradientColorKey(Color.green, 1f)}
+        };
+        _lockLineRenderer.widthMultiplier = 0.0004f;
+        _lockLineRenderer.positionCount = 3;
+        _lockLinePoints = new Vector3[3];
+
+        var frustrumLineGo = new GameObject("Gaze_Debug_Frustrum");
+        _frustrumLineRenderer = frustrumLineGo.AddComponent<LineRenderer>();
+        _frustrumLineRenderer.useWorldSpace = true;
+        _frustrumLineRenderer.material = new Material(Shader.Find("Sprites/Default")) {renderQueue = 4000};
+        _frustrumLineRenderer.colorGradient = new Gradient
         {
             colorKeys = new[] {new GradientColorKey(Color.cyan, 0f), new GradientColorKey(Color.cyan, 1f)}
         };
-        _lineRenderer.widthMultiplier = 0.0004f;
-        _lineRenderer.positionCount = 16;
-        _lineRendererPoints = new Vector3[16];
+        _frustrumLineRenderer.widthMultiplier = 0.0004f;
+        _frustrumLineRenderer.positionCount = 16;
+        _frustrumLinePoints = new Vector3[16];
     }
 
     private IEnumerator DeferredInit()
@@ -604,18 +621,25 @@ public class Glance : MVRScript
         if (!ReferenceEquals(_lockTarget, null))
         {
             _eyeTarget.control.position = _lockTarget.transform.position + _saccadeOffset;
-            return;
         }
-
-        if (!ReferenceEquals(_lookAtMirror, null))
+        else if (!ReferenceEquals(_lookAtMirror, null))
         {
             var reflectPosition = ComputeMirrorLookback(eyesCenter);
             _eyeTarget.control.position = reflectPosition + _saccadeOffset;
-            return;
+        }
+        else
+        {
+            SelectGazeTarget(eyesCenter);
+            _eyeTarget.control.position = _gazeTarget + _saccadeOffset;
         }
 
-        SelectGazeTarget(eyesCenter);
-        _eyeTarget.control.position = _gazeTarget + _saccadeOffset;
+        if (_lockLinePoints != null)
+        {
+            _lockLinePoints[0] = _lEye.position;
+            _lockLinePoints[1] = _eyeTarget.control.position;
+            _lockLinePoints[2] = _rEye.position;
+            _lockLineRenderer.SetPositions(_lockLinePoints);
+        }
     }
 
     private void InvalidateExtremes()
@@ -717,7 +741,7 @@ public class Glance : MVRScript
         if (_nextSaccadeTime > Time.time) return;
         _nextSaccadeTime = Time.time + Random.Range(_saccadeMinDurationJSON.val, _saccadeMaxDurationJSON.val);
 
-        _saccadeOffset = _head.rotation * (new Vector3(Random.value, Random.value, 0f) * _saccadeRangeJSON.val);
+        _saccadeOffset = _head.rotation * (new Vector3(Random.value - 0.5f, Random.value - 0.5f, 0f) * _saccadeRangeJSON.val);
     }
 
     private void SelectLockTarget()
@@ -926,29 +950,29 @@ public class Glance : MVRScript
         frustrumPlanes[4] = new Plane(nearBottomRight, nearTopRight, nearTopLeft);
         frustrumPlanes[5] = new Plane(farBottomRight, farBottomLeft, farTopLeft);
 
-        if (_lineRendererPoints != null)
+        if (_frustrumLinePoints != null)
         {
             //not needed; 6 points are sufficient to calculate the frustum
             var farTopRight = farCenter + camUp*(farHeight*0.5f) + camRight*(farWidth*0.5f);
             var nearBottomLeft  = nearCenter - camUp*(nearHeight*0.5f) - camRight*(nearWidth*0.5f);
 
-            _lineRendererPoints[0] = nearTopLeft;
-            _lineRendererPoints[1] = nearTopRight;
-            _lineRendererPoints[2] = farTopRight;
-            _lineRendererPoints[3] = nearTopRight;
-            _lineRendererPoints[4] = nearBottomRight;
-            _lineRendererPoints[5] = farBottomRight;
-            _lineRendererPoints[6] = nearBottomRight;
-            _lineRendererPoints[7] = nearBottomLeft;
-            _lineRendererPoints[8] = farBottomLeft;
-            _lineRendererPoints[9] = nearBottomLeft;
-            _lineRendererPoints[10] = nearTopLeft;
-            _lineRendererPoints[11] = farTopLeft;
-            _lineRendererPoints[12] = farTopRight;
-            _lineRendererPoints[13] = farBottomRight;
-            _lineRendererPoints[14] = farBottomLeft;
-            _lineRendererPoints[15] = farTopLeft;
-            _lineRenderer.SetPositions(_lineRendererPoints);
+            _frustrumLinePoints[0] = nearTopLeft;
+            _frustrumLinePoints[1] = nearTopRight;
+            _frustrumLinePoints[2] = farTopRight;
+            _frustrumLinePoints[3] = nearTopRight;
+            _frustrumLinePoints[4] = nearBottomRight;
+            _frustrumLinePoints[5] = farBottomRight;
+            _frustrumLinePoints[6] = nearBottomRight;
+            _frustrumLinePoints[7] = nearBottomLeft;
+            _frustrumLinePoints[8] = farBottomLeft;
+            _frustrumLinePoints[9] = nearBottomLeft;
+            _frustrumLinePoints[10] = nearTopLeft;
+            _frustrumLinePoints[11] = farTopLeft;
+            _frustrumLinePoints[12] = farTopRight;
+            _frustrumLinePoints[13] = farBottomRight;
+            _frustrumLinePoints[14] = farBottomLeft;
+            _frustrumLinePoints[15] = farTopLeft;
+            _frustrumLineRenderer.SetPositions(_frustrumLinePoints);
         }
     }
 
