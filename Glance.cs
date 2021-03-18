@@ -161,6 +161,7 @@ public class Glance : MVRScript
                 "Horny",
                 "Shy",
                 "Focused",
+                "Anime",
             }, "", "Apply preset") { isStorable = false };
             CreateScrollablePopup(presetsJSON, true);
             presetsJSON.setCallbackFunction = val =>
@@ -216,6 +217,18 @@ public class Glance : MVRScript
                         _blinkTimeMaxJSON.val = 0.3f;
                         _blinkSpaceMinJSON.val = 4f;
                         _blinkSpaceMaxJSON.val = 8f;
+                        break;
+                    case "Anime":
+                        _personsMouthWeightJSON.val = 0f;
+                        _playerMouthWeightJSON.val = 0f;
+                        _frustrumJSON.val = 35f;
+                        _saccadeMinDurationJSON.val = 0.07f;
+                        _saccadeMaxDurationJSON.val = 0.07f;
+                        _saccadeRangeJSON.val = 0.035f;
+                        _blinkSpaceMinJSON.val = 0.3f;
+                        _blinkSpaceMaxJSON.val = 3f;
+                        _blinkTimeMinJSON.val = 0.15f;
+                        _blinkTimeMaxJSON.val = 0.15f;
                         break;
                 }
             };
