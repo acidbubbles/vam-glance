@@ -156,20 +156,22 @@ public class Glance : MVRScript
                 "Horny",
                 "Shy",
                 "Focused",
-            }, "", "Apply preset");
+            }, "", "Apply preset") { isStorable = false };
             CreateScrollablePopup(presetsJSON, true);
             presetsJSON.setCallbackFunction = val =>
             {
+                if (!_ready) return;
+                if (string.IsNullOrEmpty(val)) return;
                 presetsJSON.valNoCallback = "";
                 ResetToDefaults();
                 switch (val)
                 {
                     case "Horny":
-                        _playerMouthWeightJSON.val = 0.5f;
-                        _personsMouthWeightJSON.val = 0.5f;
-                        _personsChestWeightJSON.val = 0.5f;
-                        _personsNipplesWeightJSON.val = 0.5f;
-                        _personsGenitalsWeightJSON.val = 0.8f;
+                        _playerMouthWeightJSON.val = 0.8f;
+                        _personsMouthWeightJSON.val = 0.8f;
+                        _personsChestWeightJSON.val = 0.4f;
+                        _personsNipplesWeightJSON.val = 0.4f;
+                        _personsGenitalsWeightJSON.val = 1f;
                         _lockMinDurationJSON.val = 0.4f;
                         _lockMaxDurationJSON.val = 1.2f;
                         _saccadeMinDurationJSON.val = 0.1f;
@@ -181,16 +183,16 @@ public class Glance : MVRScript
                         _blinkSpaceMaxJSON.val = 3f;
                         break;
                     case "Shy":
-                        _frustrumJSON.val = 16f;
+                        _frustrumJSON.val = 24f;
                         _playerEyesWeightJSON.val = 0.2f;
                         _personsEyesWeightJSON.val = 0.2f;
                         _nothingWeightJSON.val = 0.4f;
-                        _lockMinDurationJSON.val = 0.4f;
+                        _lockMinDurationJSON.val = 0.6f;
                         _lockMaxDurationJSON.val = 1.2f;
                         _saccadeMinDurationJSON.val = 0.1f;
                         _saccadeMaxDurationJSON.val = 0.4f;
                         _saccadeRangeJSON.val = 0.025f;
-                        _unlockedTiltJSON.val = 20f;
+                        _unlockedTiltJSON.val = 12f;
                         _blinkTimeMinJSON.val = 0.1f;
                         _blinkTimeMaxJSON.val = 0.4f;
                         _blinkSpaceMinJSON.val = 0.5f;
@@ -233,6 +235,7 @@ public class Glance : MVRScript
             CreateSlider(_cameraMouthDistanceJSON, true, "Camera mouth distance", "F4");
             CreateSlider(_cameraEyesDistanceJSON, true, "Camera eyes distance", "F4");
 
+            RegisterStringChooser(presetsJSON);
             RegisterBool(_mirrorsJSON);
             RegisterFloat(_playerEyesWeightJSON);
             RegisterFloat(_playerMouthWeightJSON);
