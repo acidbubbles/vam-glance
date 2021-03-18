@@ -45,7 +45,7 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _nothingWeightJSON = new JSONStorableFloat("NothingWeight", 0f, 0f, 1f, true);
     private readonly JSONStorableFloat _frustrumJSON = new JSONStorableFloat("FrustrumFOV", 25f, 0f, 45f, true);
     private readonly JSONStorableFloat _frustrumRatioJSON = new JSONStorableFloat("FrustrumRatio", 1.4f, 0.5f, 2f, true);
-    private readonly JSONStorableFloat _frustrumRotateJSON = new JSONStorableFloat("FrustrumRotate", -5f, -45f, 45f, true);
+    private readonly JSONStorableFloat _frustrumTiltJSON = new JSONStorableFloat("FrustrumTilt", -5f, -45f, 45f, true);
     private readonly JSONStorableFloat _frustrumNearJSON = new JSONStorableFloat("FrustrumNear", 0.1f, 0f, 5f, false);
     private readonly JSONStorableFloat _frustrumFarJSON = new JSONStorableFloat("FrustrumFar", 5f, 0f, 5f, false);
     private readonly JSONStorableFloat _lockMinDurationJSON = new JSONStorableFloat("GazeMinDuration", 0.5f, 0f, 10f, false);
@@ -55,6 +55,7 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _saccadeRangeJSON = new JSONStorableFloat("ShakeRange", 0.015f, 0f, 0.1f, true);
     private readonly JSONStorableFloat _quickTurnThresholdJSON = new JSONStorableFloat("QuickTurnThreshold", 3f, 0f, 10f, false);
     private readonly JSONStorableFloat _quickTurnCooldownJSON = new JSONStorableFloat("QuickTurnCooldown", 0.5f, 0f, 2f, false);
+    private readonly JSONStorableFloat _unlockedTiltJSON = new JSONStorableFloat("UnlockedTilt", 10f, -30f, 30f, false);
     private readonly JSONStorableFloat _blinkSpaceMinJSON = new JSONStorableFloat("BlinkSpaceMin", 1f, 0f, 10f, false);
     private readonly JSONStorableFloat _blinkSpaceMaxJSON = new JSONStorableFloat("BlinkSpaceMax", 7f, 0f, 10f, false);
     private readonly JSONStorableFloat _blinkTimeMinJSON = new JSONStorableFloat("BlinkTimeMin", 0.1f, 0f, 2f, false);
@@ -76,7 +77,8 @@ public class Glance : MVRScript
     private Transform _rEye;
     private Rigidbody _headRB;
     private FreeControllerV3 _eyeTarget;
-    private Quaternion _frustrumRotation = Quaternion.Euler(-5f, 0f, 0f);
+    private Quaternion _frustrumTilt = Quaternion.Euler(-5f, 0f, 0f);
+    private Quaternion _unlockedTilt = Quaternion.Euler(10f, 0f, 0f);
     private readonly List<BoxCollider> _mirrors = new List<BoxCollider>();
     private readonly List<EyeTargetReference> _objects = new List<EyeTargetReference>();
     private Vector3 _eyeTargetRestorePosition;
@@ -188,6 +190,7 @@ public class Glance : MVRScript
                         _saccadeMinDurationJSON.val = 0.1f;
                         _saccadeMaxDurationJSON.val = 0.4f;
                         _saccadeRangeJSON.val = 0.025f;
+                        _unlockedTiltJSON.val = 20f;
                         _blinkTimeMinJSON.val = 0.1f;
                         _blinkTimeMaxJSON.val = 0.4f;
                         _blinkSpaceMinJSON.val = 0.5f;
@@ -201,6 +204,7 @@ public class Glance : MVRScript
                         _saccadeMinDurationJSON.val = 0.8f;
                         _saccadeMaxDurationJSON.val = 1.4f;
                         _saccadeRangeJSON.val = 0.01f;
+                        _unlockedTiltJSON.val = 4f;
                         _blinkTimeMinJSON.val = 0.2f;
                         _blinkTimeMaxJSON.val = 0.3f;
                         _blinkSpaceMinJSON.val = 4f;
@@ -211,7 +215,7 @@ public class Glance : MVRScript
 
             CreateSlider(_frustrumJSON, true, "Frustrum field of view", "F3");
             CreateSlider(_frustrumRatioJSON, true, "Frustrum ratio (multiply width)", "F3");
-            CreateSlider(_frustrumRotateJSON, true, "Frustrum rotation (tilt)", "F3");
+            CreateSlider(_frustrumTiltJSON, true, "Frustrum tilt", "F3");
             CreateSlider(_frustrumNearJSON, true, "Frustrum near (closest)", "F3");
             CreateSlider(_frustrumFarJSON, true, "Frustrum far (furthest)", "F3");
             CreateSlider(_lockMinDurationJSON, true, "Min target lock time", "F3");
@@ -221,6 +225,7 @@ public class Glance : MVRScript
             CreateSlider(_saccadeRangeJSON, true, "Range of eye saccade", "F4");
             CreateSlider(_quickTurnThresholdJSON, true, "Quick turn threshold", "F3");
             CreateSlider(_quickTurnCooldownJSON, true, "Quick turn cooldown", "F3");
+            CreateSlider(_unlockedTiltJSON, true, "Spacey tilt", "F2");
             CreateSlider(_blinkSpaceMinJSON, true, "Blink space min", "F2");
             CreateSlider(_blinkSpaceMaxJSON, true, "Blink space max", "F3");
             CreateSlider(_blinkTimeMinJSON, true, "Blink time min", "F4");
@@ -245,7 +250,7 @@ public class Glance : MVRScript
             RegisterFloat(_nothingWeightJSON);
             RegisterFloat(_frustrumJSON);
             RegisterFloat(_frustrumRatioJSON);
-            RegisterFloat(_frustrumRotateJSON);
+            RegisterFloat(_frustrumTiltJSON);
             RegisterFloat(_frustrumNearJSON);
             RegisterFloat(_frustrumFarJSON);
             RegisterFloat(_lockMinDurationJSON);
@@ -255,6 +260,7 @@ public class Glance : MVRScript
             RegisterFloat(_saccadeRangeJSON);
             RegisterFloat(_quickTurnThresholdJSON);
             RegisterFloat(_quickTurnCooldownJSON);
+            RegisterFloat(_unlockedTiltJSON);
             RegisterFloat(_blinkSpaceMinJSON);
             RegisterFloat(_blinkSpaceMaxJSON);
             RegisterFloat(_blinkTimeMinJSON);
@@ -277,13 +283,14 @@ public class Glance : MVRScript
             _personsFeetWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _objectsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _nothingWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _frustrumRotateJSON.setCallbackFunction = val => _frustrumRotation = Quaternion.Euler(_frustrumRotateJSON.val, 0f, 0f);
+            _frustrumTiltJSON.setCallbackFunction = val => _frustrumTilt = Quaternion.Euler(val, 0f, 0f);
             _frustrumNearJSON.setCallbackFunction = val => _frustrumFarJSON.valNoCallback = Mathf.Max(val, _frustrumFarJSON.val);
             _frustrumFarJSON.setCallbackFunction = val => _frustrumNearJSON.valNoCallback = Mathf.Min(val, _frustrumNearJSON.val);
             _lockMinDurationJSON.setCallbackFunction = val => _lockMaxDurationJSON.valNoCallback = Mathf.Max(val, _lockMaxDurationJSON.val);
             _lockMaxDurationJSON.setCallbackFunction = val => _lockMinDurationJSON.valNoCallback = Mathf.Min(val, _lockMinDurationJSON.val);
             _saccadeMinDurationJSON.setCallbackFunction = val => _saccadeMaxDurationJSON.valNoCallback = Mathf.Max(val, _saccadeMaxDurationJSON.val);
             _saccadeMaxDurationJSON.setCallbackFunction = val => _saccadeMinDurationJSON.valNoCallback = Mathf.Min(val, _saccadeMinDurationJSON.val);
+            _unlockedTiltJSON.setCallbackFunction = val => _unlockedTilt = Quaternion.Euler(val, 0f, 0f);
             _blinkSpaceMinJSON.setCallbackFunction = val => _eyelidBehavior.blinkSpaceMin = val;
             _blinkSpaceMaxJSON.setCallbackFunction = val => _eyelidBehavior.blinkSpaceMax = val;
             _blinkTimeMinJSON.setCallbackFunction = val => _eyelidBehavior.blinkTimeMin = val;
@@ -320,7 +327,7 @@ public class Glance : MVRScript
         _nothingWeightJSON.SetValToDefault();
         _frustrumJSON.SetValToDefault();
         _frustrumRatioJSON.SetValToDefault();
-        _frustrumRotateJSON.SetValToDefault();
+        _frustrumTiltJSON.SetValToDefault();
         _frustrumNearJSON.SetValToDefault();
         _frustrumFarJSON.SetValToDefault();
         _lockMinDurationJSON.SetValToDefault();
@@ -330,6 +337,7 @@ public class Glance : MVRScript
         _saccadeRangeJSON.SetValToDefault();
         _quickTurnThresholdJSON.SetValToDefault();
         _quickTurnCooldownJSON.SetValToDefault();
+        _unlockedTiltJSON.SetValToDefault();
         _cameraMouthDistanceJSON.SetValToDefault();
         _cameraEyesDistanceJSON.SetValToDefault();
         _blinkSpaceMinJSON.SetValToDefault();
@@ -612,6 +620,7 @@ public class Glance : MVRScript
     {
         var eyesCenter = (_lEye.position + _rEye.position) / 2f;
 
+        DetectHighAngularVelocity();
         ScanMirrors(eyesCenter);
         ScanObjects(eyesCenter);
         InvalidateExtremes();
@@ -713,6 +722,17 @@ public class Glance : MVRScript
 
     private void SelectGazeTarget(Vector3 eyesCenter)
     {
+        if (_nextGazeTime > Time.time || _angularVelocityBurstCooldown > 0) return;
+        _nextGazeTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
+
+        var localAngularVelocity = transform.InverseTransformDirection(_headRB.angularVelocity);
+        var angularVelocity = Quaternion.Euler(localAngularVelocity * Mathf.Rad2Deg * _angularVelocityPredictiveMultiplier);
+
+        _gazeTarget = eyesCenter + (_head.rotation * _frustrumTilt * _unlockedTilt * angularVelocity * Vector3.forward) * _naturalLookDistance;
+    }
+
+    private void DetectHighAngularVelocity()
+    {
         // Immediate recompute if the head moves fast
         if (_angularVelocityBurstCooldown != 0)
         {
@@ -724,16 +744,11 @@ public class Glance : MVRScript
         {
             _angularVelocityBurstCooldown = Time.time + _quickTurnCooldownJSON.val;
             _nextGazeTime = 0f;
+            _nextObjectsScanTime = 0.2f;
+            _nextLockTargetTime = 0.2f;
+            _nextValidateExtremesTime = 0.1f;
             _eyelidBehavior.Blink();
         }
-
-        if (_nextGazeTime > Time.time) return;
-        _nextGazeTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
-
-        var localAngularVelocity = transform.InverseTransformDirection(_headRB.angularVelocity);
-        var angularVelocity = Quaternion.Euler(localAngularVelocity * Mathf.Rad2Deg * _angularVelocityPredictiveMultiplier);
-
-        _gazeTarget = eyesCenter + (_head.rotation * _frustrumRotation * angularVelocity * Vector3.forward) * _naturalLookDistance;
     }
 
     private void SelectSaccade()
@@ -829,7 +844,7 @@ public class Glance : MVRScript
         _lockTargetCandidatesScoreSum = 0f;
 
         //var planes = GeometryUtility.CalculateFrustumPlanes(SuperController.singleton.centerCameraTarget.targetCamera);
-        CalculateFrustum(eyesCenter, _head.rotation * _frustrumRotation * Vector3.forward, _frustrumJSON.val * Mathf.Deg2Rad, _frustrumRatioJSON.val, _frustrumNearJSON.val, _frustrumFarJSON.val, _frustrumPlanes);
+        CalculateFrustum(eyesCenter, _head.rotation * _frustrumTilt * Vector3.forward, _frustrumJSON.val * Mathf.Deg2Rad, _frustrumRatioJSON.val, _frustrumNearJSON.val, _frustrumFarJSON.val, _frustrumPlanes);
 
         Transform closest = null;
         var closestDistance = float.PositiveInfinity;
