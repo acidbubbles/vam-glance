@@ -1,5 +1,4 @@
 // TODO: Snap when looking away, still apply randomize (e.g. random spots in the frustrum)
-// TODO: Line color change if target (cyan) or not (gray)
 // TODO: Hide the eye target
 // TODO: Validate high view
 using System;
@@ -668,28 +667,31 @@ public class Glance : MVRScript
         ScanObjects(eyesCenter);
         InvalidateExtremes();
         SelectLockTarget();
-        SelectSaccade();
 
         var hasTarget = !ReferenceEquals(_lockTarget, null);
+        Vector3 lockPosition;
         if (hasTarget)
         {
-            _eyeTarget.control.position = _lockTarget.transform.position + _saccadeOffset;
+            lockPosition = _lockTarget.transform.position;
         }
         else if (!ReferenceEquals(_lookAtMirror, null))
         {
             var reflectPosition = ComputeMirrorLookback(eyesCenter);
-            _eyeTarget.control.position = reflectPosition + _saccadeOffset;
+            lockPosition = reflectPosition;
         }
         else
         {
             SelectGazeTarget(eyesCenter);
-            _eyeTarget.control.position = _gazeTarget + _saccadeOffset;
+            lockPosition = _gazeTarget;
         }
+
+        SelectSaccade();
+        _eyeTarget.control.position = lockPosition + _saccadeOffset;
 
         if (_lockLinePoints != null)
         {
             _lockLinePoints[0] = _lEye.position;
-            _lockLinePoints[1] = _eyeTarget.control.position;
+            _lockLinePoints[1] = lockPosition;
             _lockLinePoints[2] = _rEye.position;
             _lockLineRenderer.SetPositions(_lockLinePoints);
             SetLineColor(_lockLineRenderer, hasTarget ? Color.green : Color.gray);
