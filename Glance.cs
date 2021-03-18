@@ -44,8 +44,8 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _personsFeetWeightJSON = new JSONStorableFloat("PersonsFeetWeight", 0f, 0f, 1f, true);
     private readonly JSONStorableFloat _objectsWeightJSON = new JSONStorableFloat("ObjectsWeight", 0f, 0f, 1f, true);
     private readonly JSONStorableFloat _nothingWeightJSON = new JSONStorableFloat("NothingWeight", 0f, 0f, 1f, true);
-    private readonly JSONStorableFloat _frustrumJSON = new JSONStorableFloat("FrustrumFOV", 25f, 0f, 45f, true);
-    private readonly JSONStorableFloat _frustrumRatioJSON = new JSONStorableFloat("FrustrumRatio", 1.4f, 0.5f, 2f, true);
+    private readonly JSONStorableFloat _frustrumJSON = new JSONStorableFloat("FrustrumFOV", 25f, 0f, 45f, false);
+    private readonly JSONStorableFloat _frustrumRatioJSON = new JSONStorableFloat("FrustrumRatio", 1.4f, 0.5f, 2f, false);
     private readonly JSONStorableFloat _frustrumTiltJSON = new JSONStorableFloat("FrustrumTilt", -5f, -45f, 45f, true);
     private readonly JSONStorableFloat _frustrumNearJSON = new JSONStorableFloat("FrustrumNear", 0.1f, 0f, 5f, false);
     private readonly JSONStorableFloat _frustrumFarJSON = new JSONStorableFloat("FrustrumFar", 5f, 0f, 5f, false);
@@ -697,7 +697,6 @@ public class Glance : MVRScript
 
         if (AreEyesInRange()) return;
 
-        // TODO: Doesn't seem to be called in practice?
         _nextGazeTime = 0f;
         _nextLockTargetTime = 0f;
         _angularVelocityBurstCooldown = _quickTurnCooldownJSON.val;
@@ -705,9 +704,7 @@ public class Glance : MVRScript
 
     private bool AreEyesInRange()
     {
-        if (!IsEyeInRange(_lEye, _lEyeLimits)) return false;
-        if (!IsEyeInRange(_rEye, _rEyeLimits)) return false;
-        return true;
+        return IsEyeInRange(_lEye, _lEyeLimits) && IsEyeInRange(_rEye, _rEyeLimits);
     }
 
     private bool IsEyeInRange(Transform eye, LookAtWithLimits limits)
