@@ -42,13 +42,13 @@ public class Glance : MVRScript
         "Testes",
     };
 
-    private readonly JSONStorableBool _trackPlayerJSON = new JSONStorableBool("TrackPlayer", true);
-    private readonly JSONStorableBool _trackMirrorsJSON = new JSONStorableBool("TrackMirrors", false);
-    private readonly JSONStorableBool _trackWindowCameraJSON = new JSONStorableBool("TrackWindowCamera", false);
-    private readonly JSONStorableBool _trackSelfHandsJSON = new JSONStorableBool("TrackSelfHands", false);
-    private readonly JSONStorableBool _trackSelfGenitalsJSON = new JSONStorableBool("TrackSelfGenitals", true);
-    private readonly JSONStorableBool _trackPersonsJSON = new JSONStorableBool("TrackPersons", true);
-    private readonly JSONStorableBool _trackObjectsJSON = new JSONStorableBool("TrackObjects", true);
+    private readonly JSONStorableFloat _playerWeightJSON = new JSONStorableFloat("PlayerWeight", 1f, 0f, 1f, true);
+    private readonly JSONStorableFloat _mirrorsWeightJSON = new JSONStorableFloat("MirrorsWeight", 1f, 0f, 1f, true);
+    private readonly JSONStorableFloat _windowCameraWeightJSON = new JSONStorableFloat("WindowCameraWeight", 1f, 0f, 1f, true);
+    private readonly JSONStorableFloat _selfHandsWeightJSON = new JSONStorableFloat("SelfHandsWeight", 1f, 0f, 1f, true);
+    private readonly JSONStorableFloat _selfGenitalsWeightJSON = new JSONStorableFloat("SelfGenitalsWeight", 1f, 0f, 1f, true);
+    private readonly JSONStorableFloat _personsWeightJSON = new JSONStorableFloat("PersonsWeight", 1f, 0f, 1f, true);
+    private readonly JSONStorableFloat _objectsWeightJSON = new JSONStorableFloat("ObjectsWeight", 1f, 0f, 1f, true);
     private readonly JSONStorableFloat _frustrumJSON = new JSONStorableFloat("FrustrumFOV", 16f, 0f, 45f, true);
     private readonly JSONStorableFloat _frustrumRatioJSON = new JSONStorableFloat("FrustrumRatio", 1.3f, 0.5f, 2f, true);
     private readonly JSONStorableFloat _frustrumRotateJSON = new JSONStorableFloat("FrustrumRotate", -5f, -45f, 45f, true);
@@ -123,13 +123,14 @@ public class Glance : MVRScript
             _headRB = _head.GetComponent<Rigidbody>();
             _eyeTarget = containingAtom.freeControllers.First(fc => fc.name == "eyeTargetControl");
 
-            CreateToggle(_trackPlayerJSON).label = "Player (camera)";
-            CreateToggle(_trackMirrorsJSON).label = "Mirrors (look at themselves)";
-            CreateToggle(_trackWindowCameraJSON).label = "Window camera";
-            CreateToggle(_trackSelfHandsJSON).label = "Hands (self)";
-            CreateToggle(_trackSelfGenitalsJSON).label = "Genitals (self)";
-            CreateToggle(_trackPersonsJSON).label = "Persons (eyes, hands, gens)";
-            CreateToggle(_trackObjectsJSON).label = "Objects (toys, cua, shapes)";
+            CreateSlider(_playerWeightJSON).label = "Player (camera)";
+            CreateSlider(_mirrorsWeightJSON).label = "Mirrors (look at themselves)";
+            CreateSlider(_windowCameraWeightJSON).label = "Window camera";
+            CreateSlider(_selfHandsWeightJSON).label = "Hands (self)";
+            CreateSlider(_selfGenitalsWeightJSON).label = "Genitals (self)";
+            CreateSlider(_personsWeightJSON).label = "Persons (eyes, hands, gens)";
+            CreateSlider(_objectsWeightJSON).label = "Objects (toys, cua, shapes)";
+
             CreateToggle(_debugJSON).label = "Show debug information";
             CreateTextField(_debugDisplayJSON);
 
@@ -146,13 +147,13 @@ public class Glance : MVRScript
             CreateSlider(_quickTurnThresholdJSON, true).label = "Quick turn threshold";
             CreateSlider(_quickTurnCooldownJSON, true).label = "Quick turn cooldown";
 
-            RegisterBool(_trackPlayerJSON);
-            RegisterBool(_trackMirrorsJSON);
-            RegisterBool(_trackWindowCameraJSON);
-            RegisterBool(_trackSelfHandsJSON);
-            RegisterBool(_trackSelfGenitalsJSON);
-            RegisterBool(_trackPersonsJSON);
-            RegisterBool(_trackObjectsJSON);
+            RegisterFloat(_playerWeightJSON);
+            RegisterFloat(_mirrorsWeightJSON);
+            RegisterFloat(_windowCameraWeightJSON);
+            RegisterFloat(_selfHandsWeightJSON);
+            RegisterFloat(_selfGenitalsWeightJSON);
+            RegisterFloat(_personsWeightJSON);
+            RegisterFloat(_objectsWeightJSON);
             RegisterFloat(_frustrumJSON);
             RegisterFloat(_frustrumRatioJSON);
             RegisterFloat(_frustrumRotateJSON);
@@ -166,13 +167,13 @@ public class Glance : MVRScript
             RegisterFloat(_quickTurnThresholdJSON);
             RegisterFloat(_quickTurnCooldownJSON);
 
-            _trackPlayerJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _trackMirrorsJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _trackWindowCameraJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _trackSelfHandsJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _trackSelfGenitalsJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _trackPersonsJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _trackObjectsJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
+            _playerWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
+            _mirrorsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
+            _windowCameraWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
+            _selfHandsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
+            _selfGenitalsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
+            _personsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
+            _objectsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _frustrumRotateJSON.setCallbackFunction = val => _frustrumRotation = Quaternion.Euler(_frustrumRotateJSON.val, 0f, 0f);
             _frustrumNearJSON.setCallbackFunction = val => _frustrumFarJSON.valNoCallback = Mathf.Max(val, _frustrumFarJSON.val);
             _frustrumFarJSON.setCallbackFunction = val => _frustrumNearJSON.valNoCallback = Mathf.Min(val, _frustrumNearJSON.val);
@@ -271,7 +272,7 @@ public class Glance : MVRScript
     {
         _mirrors.Clear();
 
-        if (!_trackMirrorsJSON.val) return;
+        if (_mirrorsWeightJSON.val < 0.01f) return;
 
         _mirrors.AddRange(SuperController.singleton.GetAtoms()
             .Where(a => _mirrorAtomTypes.Contains(a.type))
@@ -284,9 +285,9 @@ public class Glance : MVRScript
     {
         _objects.Clear();
 
-        if (_trackPlayerJSON.val)
+        if (_playerWeightJSON.val >= 0.01f)
         {
-            _objects.Add(new EyeTargetReference(SuperController.singleton.centerCameraTarget.transform));
+            _objects.Add(new EyeTargetReference(SuperController.singleton.centerCameraTarget.transform, _playerWeightJSON.val));
         }
 
         foreach (var atom in SuperController.singleton.GetAtoms())
@@ -297,9 +298,9 @@ public class Glance : MVRScript
             {
                 case "WindowCamera":
                 {
-                    if (!_trackWindowCameraJSON.val) continue;
+                    if (_windowCameraWeightJSON.val < 0.01f) continue;
                     if (atom.GetStorableByID("CameraControl")?.GetBoolParamValue("cameraOn") != true) continue;
-                    _objects.Add(new EyeTargetReference(atom.mainController.control));
+                    _objects.Add(new EyeTargetReference(atom.mainController.control, _windowCameraWeightJSON.val));
                     break;
                 }
                 case "Person":
@@ -308,20 +309,20 @@ public class Glance : MVRScript
                     {
                         foreach (var bone in _bones)
                         {
-                            if (_trackSelfHandsJSON.val && (bone.name == "lHand" || bone.name == "rHand"))
-                                _objects.Add(new EyeTargetReference(bone.transform));
-                            else if (_trackSelfGenitalsJSON.val && (bone.name == "Gen1" || bone.name == "Gen3"))
-                                _objects.Add(new EyeTargetReference(bone.transform));
+                            if (_selfHandsWeightJSON.val >= 0.01f && (bone.name == "lHand" || bone.name == "rHand"))
+                                _objects.Add(new EyeTargetReference(bone.transform, _selfHandsWeightJSON.val));
+                            else if (_selfGenitalsWeightJSON.val >= 0.01f && (bone.name == "Gen1" || bone.name == "Gen3"))
+                                _objects.Add(new EyeTargetReference(bone.transform, _selfGenitalsWeightJSON.val));
                         }
 
                         continue;
                     }
 
-                    if (!_trackPersonsJSON.val) continue;
+                    if (_personsWeightJSON.val < 0.1f) continue;
                     foreach (var bone in atom.transform.Find("rescale2").GetComponentsInChildren<DAZBone>())
                     {
                         if (!_bonesLookAt.Contains(bone.name)) continue;
-                        _objects.Add(new EyeTargetReference(bone.transform));
+                        _objects.Add(new EyeTargetReference(bone.transform, _personsWeightJSON.val));
                     }
 
                     break;
@@ -335,13 +336,13 @@ public class Glance : MVRScript
                 case "CustomUnityAsset":
                 case "Torch":
                 {
-                    if (!_trackObjectsJSON.val) continue;
-                    _objects.Add(new EyeTargetReference(atom.mainController.control));
+                    if (_objectsWeightJSON.val < 0.01f) continue;
+                    _objects.Add(new EyeTargetReference(atom.mainController.control, _objectsWeightJSON.val));
                     break;
                 }
                 case "Empty":
                 {
-                    if (atom.storeId.StartsWith("GlanceTarget_"))
+                    if (!atom.storeId.StartsWith("GlanceTarget_")) continue;
                         _objects.Add(new EyeTargetReference(atom.mainController.control));
                     break;
                 }
