@@ -42,8 +42,8 @@ public class Glance : MVRScript
         "Testes",
     };
 
+    private readonly JSONStorableBool _mirrorsJSON = new JSONStorableBool("Mirrors", true);
     private readonly JSONStorableFloat _playerWeightJSON = new JSONStorableFloat("PlayerWeight", 1f, 0f, 1f, true);
-    private readonly JSONStorableFloat _mirrorsWeightJSON = new JSONStorableFloat("MirrorsWeight", 1f, 0f, 1f, true);
     private readonly JSONStorableFloat _windowCameraWeightJSON = new JSONStorableFloat("WindowCameraWeight", 1f, 0f, 1f, true);
     private readonly JSONStorableFloat _selfHandsWeightJSON = new JSONStorableFloat("SelfHandsWeight", 1f, 0f, 1f, true);
     private readonly JSONStorableFloat _selfGenitalsWeightJSON = new JSONStorableFloat("SelfGenitalsWeight", 1f, 0f, 1f, true);
@@ -123,8 +123,8 @@ public class Glance : MVRScript
             _headRB = _head.GetComponent<Rigidbody>();
             _eyeTarget = containingAtom.freeControllers.First(fc => fc.name == "eyeTargetControl");
 
+            CreateToggle(_mirrorsJSON).label = "Mirrors (look at themselves)";
             CreateSlider(_playerWeightJSON).label = "Player (camera)";
-            CreateSlider(_mirrorsWeightJSON).label = "Mirrors (look at themselves)";
             CreateSlider(_windowCameraWeightJSON).label = "Window camera";
             CreateSlider(_selfHandsWeightJSON).label = "Hands (self)";
             CreateSlider(_selfGenitalsWeightJSON).label = "Genitals (self)";
@@ -147,8 +147,8 @@ public class Glance : MVRScript
             CreateSlider(_quickTurnThresholdJSON, true).label = "Quick turn threshold";
             CreateSlider(_quickTurnCooldownJSON, true).label = "Quick turn cooldown";
 
+            RegisterBool(_mirrorsJSON);
             RegisterFloat(_playerWeightJSON);
-            RegisterFloat(_mirrorsWeightJSON);
             RegisterFloat(_windowCameraWeightJSON);
             RegisterFloat(_selfHandsWeightJSON);
             RegisterFloat(_selfGenitalsWeightJSON);
@@ -167,8 +167,8 @@ public class Glance : MVRScript
             RegisterFloat(_quickTurnThresholdJSON);
             RegisterFloat(_quickTurnCooldownJSON);
 
+            _mirrorsJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _playerWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _mirrorsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _windowCameraWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _selfHandsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _selfGenitalsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
@@ -272,7 +272,7 @@ public class Glance : MVRScript
     {
         _mirrors.Clear();
 
-        if (_mirrorsWeightJSON.val < 0.01f) return;
+        if (!_mirrorsJSON.val) return;
 
         _mirrors.AddRange(SuperController.singleton.GetAtoms()
             .Where(a => _mirrorAtomTypes.Contains(a.type))
