@@ -16,6 +16,7 @@ public class Glance : MVRScript
 {
     private const float _mirrorScanSpan = 0.5f;
     private const float _objectScanSpan = 0.08f;
+    private const float _windowCameraSpan = 2.19f;
     private const float _validateExtremesSpan = 0.04f;
     private const float _naturalLookDistance = 0.8f;
     private const float _angularVelocityPredictiveMultiplier = 0.5f;
@@ -88,6 +89,8 @@ public class Glance : MVRScript
     private readonly List<EyeTargetReference> _lockTargetCandidates = new List<EyeTargetReference>();
     private float _lockTargetCandidatesScoreSum;
     private float _nextMirrorScanTime;
+    private float _nextWindowCameraCheckTime;
+    private bool _windowCameraInObjects;
     private BoxCollider _lookAtMirror;
     private float _lookAtMirrorDistance;
     private float _nextObjectsScanTime;
@@ -107,6 +110,7 @@ public class Glance : MVRScript
     private Transform _cameraMouth;
     private Transform _cameraLEye;
     private Transform _cameraREye;
+    private JSONStorableBool _windowCameraControl;
 
     public override void Init()
     {
@@ -130,6 +134,7 @@ public class Glance : MVRScript
             _rEyeLimits = rEyeBone.GetComponent<LookAtWithLimits>();
             _headRB = _head.GetComponent<Rigidbody>();
             _eyeTarget = containingAtom.freeControllers.First(fc => fc.name == "eyeTargetControl");
+            _windowCameraControl =  SuperController.singleton.GetAtoms().FirstOrDefault(a => a.type == "WindowCamera")?.GetStorableByID("CameraControl")?.GetBoolJSONParam("cameraOn");
 
             CreateToggle(_mirrorsJSON).label = "Mirrors (look at themselves)";
             CreateSlider(_playerEyesWeightJSON, false, "Eyes (you)", "F4");
@@ -300,7 +305,7 @@ public class Glance : MVRScript
             _blinkTimeMaxJSON.setCallbackFunction = val => _eyelidBehavior.blinkTimeMax = val;
             _cameraMouthDistanceJSON.setCallbackFunction = _ => { if (_cameraMouth != null) _cameraMouth.localPosition = new Vector3(0, -_cameraMouthDistanceJSON.val, 0); };
             _cameraEyesDistanceJSON.setCallbackFunction = _ => { if (_cameraMouth != null) { _cameraLEye.localPosition = new Vector3(-_cameraEyesDistanceJSON.val, 0, 0); _cameraREye.localPosition = new Vector3(_cameraEyesDistanceJSON.val, 0, 0); } };
-            _debugJSON.setCallbackFunction = SyncLineRenderer;
+            _debugJSON.setCallbackFunction = SyncDebug;
 
             SuperController.singleton.StartCoroutine(DeferredInit());
         }
@@ -356,7 +361,7 @@ public class Glance : MVRScript
         slider.valueFormat = valueFormat;
     }
 
-    private void SyncLineRenderer(bool val)
+    private void SyncDebug(bool val)
     {
         if (!val)
         {
@@ -366,6 +371,14 @@ public class Glance : MVRScript
             _frustrumLinePoints = null;
             return;
         }
+
+        /*
+        foreach (var jsf in GetFloatParamNames().Select(n => GetFloatJSONParam(n)))
+        {
+            if (Math.Abs(jsf.val - jsf.defaultVal) < 0.001f) continue;
+            SuperController.LogMessage($"[DBG] {jsf.name}: {jsf.defaultVal:0.000} -> {jsf.val:0.000}");
+        }
+        */
 
         if (_frustrumLineRenderer != null) return;
 
@@ -392,6 +405,8 @@ public class Glance : MVRScript
         _frustrumLineRenderer.widthMultiplier = 0.0004f;
         _frustrumLineRenderer.positionCount = 16;
         _frustrumLinePoints = new Vector3[16];
+
+        _nextLockTargetTime = 0f;
     }
 
     private IEnumerator DeferredInit()
@@ -488,6 +503,7 @@ public class Glance : MVRScript
     private void SyncObjects()
     {
         _objects.Clear();
+        _windowCameraInObjects = false;
 
         if (_playerEyesWeightJSON.val >= 0.01f)
         {
@@ -509,6 +525,7 @@ public class Glance : MVRScript
                     if (_windowCameraWeightJSON.val < 0.01f) continue;
                     if (atom.GetStorableByID("CameraControl")?.GetBoolParamValue("cameraOn") != true) continue;
                     _objects.Add(new EyeTargetReference(atom.mainController.control, _windowCameraWeightJSON.val));
+                    _windowCameraInObjects = true;
                     break;
                 }
                 case "Person":
@@ -609,6 +626,7 @@ public class Glance : MVRScript
         _lockTargetCandidates.Clear();
         _lockTargetCandidatesScoreSum = 0f;
         _nextMirrorScanTime = 0f;
+        _nextWindowCameraCheckTime = 0f;
         _nextObjectsScanTime = 0f;
         _nextValidateExtremesTime = 0f;
         _nextLockTargetTime = 0f;
@@ -624,6 +642,7 @@ public class Glance : MVRScript
         var eyesCenter = (_lEye.position + _rEye.position) / 2f;
 
         DetectHighAngularVelocity();
+        CheckWindowCamera();
         ScanMirrors(eyesCenter);
         ScanObjects(eyesCenter);
         InvalidateExtremes();
@@ -652,6 +671,19 @@ public class Glance : MVRScript
             _lockLinePoints[2] = _rEye.position;
             _lockLineRenderer.SetPositions(_lockLinePoints);
         }
+    }
+
+    private void CheckWindowCamera()
+    {
+        if (_nextWindowCameraCheckTime > Time.time) return;
+        _nextWindowCameraCheckTime = Time.time + _windowCameraSpan;
+
+        if (!(_windowCameraWeightJSON.val >= 0.01)) return;
+
+        if (!_windowCameraInObjects && _windowCameraControl.val)
+            SyncObjects();
+        else if (_windowCameraInObjects && !_windowCameraControl.val)
+            SyncObjects();
     }
 
     private void InvalidateExtremes()
@@ -795,7 +827,8 @@ public class Glance : MVRScript
             _nextLockTargetTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMinDurationJSON.val + gazeDuration);
         }
 
-        if (_debugJSON.val && UITransform.gameObject.activeInHierarchy) UpdateDebugDisplay();
+        if (_debugJSON.val && UITransform.gameObject.activeInHierarchy)
+            UpdateDebugDisplay();
     }
 
     private void UpdateDebugDisplay()
