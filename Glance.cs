@@ -55,6 +55,10 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _shakeRangeJSON = new JSONStorableFloat("ShakeRange", 0.015f, 0f, 0.1f, true);
     private readonly JSONStorableFloat _quickTurnThresholdJSON = new JSONStorableFloat("QuickTurnThreshold", 3f, 0f, 10f, false);
     private readonly JSONStorableFloat _quickTurnCooldownJSON = new JSONStorableFloat("QuickTurnCooldown", 0.5f, 0f, 2f, false);
+    private readonly JSONStorableFloat _blinkSpaceMinJSON = new JSONStorableFloat("BlinkTimeMin", 1f, 0f, 10f, false);
+    private readonly JSONStorableFloat _blinkSpaceMaxJSON = new JSONStorableFloat("BlinkTimeMax", 7f, 0f, 10f, false);
+    private readonly JSONStorableFloat _blinkTimeMinJSON = new JSONStorableFloat("BlinkTimeMin", 0.1f, 0f, 2f, false);
+    private readonly JSONStorableFloat _blinkTimeMaxJSON = new JSONStorableFloat("BlinkTimeMax", 0.4f, 0f, 2f, false);
     private readonly JSONStorableFloat _cameraMouthDistanceJSON = new JSONStorableFloat("CameraMouthEyesDistance", 0.053f, 0f, 0.1f, false);
     private readonly JSONStorableFloat _cameraEyesDistanceJSON = new JSONStorableFloat("CameraEyesDistance", 0.015f, 0f, 0.1f, false);
     private readonly JSONStorableBool _debugJSON = new JSONStorableBool("Debug", false);
@@ -142,6 +146,16 @@ public class Glance : MVRScript
             CreateToggle(_debugJSON).label = "Show debug information";
             CreateTextField(_debugDisplayJSON);
 
+            var presetsJSON = new JSONStorableStringChooser("Presets", new List<string>
+            {
+                ""
+            }, "", "Apply preset");
+            CreateScrollablePopup(presetsJSON, true);
+            presetsJSON.setCallbackFunction = val =>
+            {
+                ResetToDefaults();
+            };
+
             CreateSlider(_frustrumJSON, true, "Frustrum field of view", "F3");
             CreateSlider(_frustrumRatioJSON, true, "Frustrum ratio (multiply width)", "F3");
             CreateSlider(_frustrumRotateJSON, true, "Frustrum rotation (tilt)", "F3");
@@ -154,6 +168,10 @@ public class Glance : MVRScript
             CreateSlider(_shakeRangeJSON, true, "Range of eye saccade", "F4");
             CreateSlider(_quickTurnThresholdJSON, true, "Quick turn threshold", "F3");
             CreateSlider(_quickTurnCooldownJSON, true, "Quick turn cooldown", "F3");
+            CreateSlider(_blinkSpaceMinJSON, true, "Blink space min", "F2");
+            CreateSlider(_blinkSpaceMaxJSON, true, "Blink space max", "F3");
+            CreateSlider(_blinkTimeMinJSON, true, "Blink time min", "F4");
+            CreateSlider(_blinkTimeMaxJSON, true, "Blink time max", "F4");
             CreateSlider(_cameraMouthDistanceJSON, true, "Camera mouth distance", "F4");
             CreateSlider(_cameraEyesDistanceJSON, true, "Camera eyes distance", "F4");
 
@@ -184,6 +202,10 @@ public class Glance : MVRScript
             RegisterFloat(_shakeRangeJSON);
             RegisterFloat(_quickTurnThresholdJSON);
             RegisterFloat(_quickTurnCooldownJSON);
+            RegisterFloat(_blinkSpaceMinJSON);
+            RegisterFloat(_blinkSpaceMaxJSON);
+            RegisterFloat(_blinkTimeMinJSON);
+            RegisterFloat(_blinkTimeMaxJSON);
             RegisterFloat(_cameraMouthDistanceJSON);
             RegisterFloat(_cameraEyesDistanceJSON);
 
@@ -209,6 +231,10 @@ public class Glance : MVRScript
             _gazeMaxDurationJSON.setCallbackFunction = val => _gazeMinDurationJSON.valNoCallback = Mathf.Min(val, _gazeMinDurationJSON.val);
             _shakeMinDurationJSON.setCallbackFunction = val => _shakeMaxDurationJSON.valNoCallback = Mathf.Max(val, _shakeMaxDurationJSON.val);
             _shakeMaxDurationJSON.setCallbackFunction = val => _shakeMinDurationJSON.valNoCallback = Mathf.Min(val, _shakeMinDurationJSON.val);
+            _blinkSpaceMinJSON.setCallbackFunction = val => _eyelidBehavior.blinkSpaceMin = val;
+            _blinkSpaceMaxJSON.setCallbackFunction = val => _eyelidBehavior.blinkSpaceMax = val;
+            _blinkTimeMinJSON.setCallbackFunction = val => _eyelidBehavior.blinkTimeMin = val;
+            _blinkTimeMaxJSON.setCallbackFunction = val => _eyelidBehavior.blinkTimeMax = val;
             _cameraMouthDistanceJSON.setCallbackFunction = _ => { if (_cameraMouth != null) _cameraMouth.localPosition = new Vector3(0, -_cameraMouthDistanceJSON.val, 0); };
             _cameraEyesDistanceJSON.setCallbackFunction = _ => { if (_cameraMouth != null) { _cameraLEye.localPosition = new Vector3(-_cameraEyesDistanceJSON.val, 0, 0); _cameraREye.localPosition = new Vector3(_cameraEyesDistanceJSON.val, 0, 0); } };
             _debugJSON.setCallbackFunction = SyncLineRenderer;
@@ -220,6 +246,43 @@ public class Glance : MVRScript
             SuperController.LogError($"{nameof(Glance)}.{nameof(Init)}: {e}");
             enabled = false;
         }
+    }
+
+    private void ResetToDefaults()
+    {
+        _mirrorsJSON.SetValToDefault();
+        _playerEyesWeightJSON.SetValToDefault();
+        _playerMouthWeightJSON.SetValToDefault();
+        _windowCameraWeightJSON.SetValToDefault();
+        _selfHandsWeightJSON.SetValToDefault();
+        _selfGenitalsWeightJSON.SetValToDefault();
+        _personsEyesWeightJSON .SetValToDefault();
+        _personsMouthWeightJSON .SetValToDefault();
+        _personsChestWeightJSON .SetValToDefault();
+        _personsNipplesWeightJSON .SetValToDefault();
+        _personsHandsWeightJSON .SetValToDefault();
+        _personsGenitalsWeightJSON .SetValToDefault();
+        _personsFeetWeightJSON .SetValToDefault();
+        _objectsWeightJSON.SetValToDefault();
+        _nothingWeightJSON.SetValToDefault();
+        _frustrumJSON.SetValToDefault();
+        _frustrumRatioJSON.SetValToDefault();
+        _frustrumRotateJSON.SetValToDefault();
+        _frustrumNearJSON.SetValToDefault();
+        _frustrumFarJSON.SetValToDefault();
+        _gazeMinDurationJSON.SetValToDefault();
+        _gazeMaxDurationJSON.SetValToDefault();
+        _shakeMinDurationJSON.SetValToDefault();
+        _shakeMaxDurationJSON.SetValToDefault();
+        _shakeRangeJSON.SetValToDefault();
+        _quickTurnThresholdJSON.SetValToDefault();
+        _quickTurnCooldownJSON.SetValToDefault();
+        _cameraMouthDistanceJSON.SetValToDefault();
+        _cameraEyesDistanceJSON.SetValToDefault();
+        _blinkSpaceMinJSON.SetValToDefault();
+        _blinkSpaceMaxJSON.SetValToDefault();
+        _blinkTimeMinJSON.SetValToDefault();
+        _blinkTimeMaxJSON.SetValToDefault();
     }
 
     private void CreateSlider(JSONStorableFloat jsf, bool right, string label, string valueFormat = "F2")
@@ -287,6 +350,7 @@ public class Glance : MVRScript
             _eyeBehavior.currentLookMode = EyesControl.LookMode.Target;
 
             _blinkRestoreEnabled = _eyelidBehavior.GetBoolParamValue("blinkEnabled");
+            _eyelidBehavior.SetBoolParamValue("blinkEnabled", true);
 
             SuperController.singleton.onAtomUIDsChangedHandlers += ONAtomUIDsChanged;
 
@@ -315,6 +379,11 @@ public class Glance : MVRScript
             if (_eyeBehavior.currentLookMode != EyesControl.LookMode.Target)
                 _eyeBehavior.currentLookMode = _eyeBehaviorRestoreLookMode;
             _eyelidBehavior.SetBoolParamValue("blinkEnabled", _blinkRestoreEnabled);
+
+            _eyelidBehavior.blinkSpaceMin = 1f;
+            _eyelidBehavior.blinkSpaceMax = 7f;
+            _eyelidBehavior.blinkTimeMin = 0.1f;
+            _eyelidBehavior.blinkTimeMax = 0.4f;
 
             ClearState();
         }
