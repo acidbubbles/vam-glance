@@ -78,12 +78,12 @@ public class Glance : MVRScript
     private FreeControllerV3 _eyeTarget;
     private Quaternion _frustrumRotation = Quaternion.Euler(-5f, 0f, 0f);
     private readonly List<BoxCollider> _mirrors = new List<BoxCollider>();
-    private readonly List<Transform> _objects = new List<Transform>();
+    private readonly List<EyeTargetReference> _objects = new List<EyeTargetReference>();
     private Vector3 _eyeTargetRestorePosition;
     private EyesControl.LookMode _eyeBehaviorRestoreLookMode;
     private bool _blinkRestoreEnabled;
     private readonly Plane[] _frustrumPlanes = new Plane[6];
-    private readonly List<Transform> _lockTargetCandidates = new List<Transform>();
+    private readonly List<EyeTargetReference> _lockTargetCandidates = new List<EyeTargetReference>();
     private float _nextMirrorScanTime;
     private BoxCollider _lookAtMirror;
     private float _lookAtMirrorDistance;
@@ -286,7 +286,7 @@ public class Glance : MVRScript
 
         if (_trackPlayerJSON.val)
         {
-            _objects.Add(SuperController.singleton.centerCameraTarget.transform);
+            _objects.Add(new EyeTargetReference(SuperController.singleton.centerCameraTarget.transform));
         }
 
         foreach (var atom in SuperController.singleton.GetAtoms())
@@ -299,7 +299,7 @@ public class Glance : MVRScript
                 {
                     if (!_trackWindowCameraJSON.val) continue;
                     if (atom.GetStorableByID("CameraControl")?.GetBoolParamValue("cameraOn") != true) continue;
-                    _objects.Add(atom.mainController.control);
+                    _objects.Add(new EyeTargetReference(atom.mainController.control));
                     break;
                 }
                 case "Person":
@@ -309,9 +309,9 @@ public class Glance : MVRScript
                         foreach (var bone in _bones)
                         {
                             if (_trackSelfHandsJSON.val && (bone.name == "lHand" || bone.name == "rHand"))
-                                _objects.Add(bone.transform);
+                                _objects.Add(new EyeTargetReference(bone.transform));
                             else if (_trackSelfGenitalsJSON.val && (bone.name == "Gen1" || bone.name == "Gen3"))
-                                _objects.Add(bone.transform);
+                                _objects.Add(new EyeTargetReference(bone.transform));
                         }
 
                         continue;
@@ -321,7 +321,7 @@ public class Glance : MVRScript
                     foreach (var bone in atom.transform.Find("rescale2").GetComponentsInChildren<DAZBone>())
                     {
                         if (!_bonesLookAt.Contains(bone.name)) continue;
-                        _objects.Add(bone.transform);
+                        _objects.Add(new EyeTargetReference(bone.transform));
                     }
 
                     break;
@@ -336,13 +336,13 @@ public class Glance : MVRScript
                 case "Torch":
                 {
                     if (!_trackObjectsJSON.val) continue;
-                    _objects.Add(atom.mainController.control);
+                    _objects.Add(new EyeTargetReference(atom.mainController.control));
                     break;
                 }
                 case "Empty":
                 {
                     if (atom.storeId.StartsWith("GlanceTarget_"))
-                        _objects.Add(atom.mainController.control);
+                        _objects.Add(new EyeTargetReference(atom.mainController.control));
                     break;
                 }
             }
@@ -508,7 +508,7 @@ public class Glance : MVRScript
         _nextLockTargetTime = Time.time + Random.Range(_gazeMinDurationJSON.val, _gazeMaxDurationJSON.val);
 
         _lockTarget = _lockTargetCandidates.Count > 0
-            ? _lockTargetCandidates[Random.Range(0, _lockTargetCandidates.Count)]
+            ? _lockTargetCandidates[Random.Range(0, _lockTargetCandidates.Count)].transform
             : null;
 
         if (_debugJSON.val && UITransform.gameObject.activeInHierarchy) UpdateDebugDisplay();
@@ -571,17 +571,20 @@ public class Glance : MVRScript
         var closestDistance = float.PositiveInfinity;
         foreach (var o in _objects)
         {
-            var position = o.position;
+            var position = o.transform.position;
             var bounds = new Bounds(position, new Vector3(0.001f, 0.001f, 0.001f));
             if (!GeometryUtility.TestPlanesAABB(_frustrumPlanes, bounds)) continue;
             var distance = Vector3.SqrMagnitude(bounds.center - eyesCenter);
             if (distance > _lookAtMirrorDistance) continue;
             if (!IsInAngleRange(eyesCenter, position)) continue;
-            _lockTargetCandidates.Add(o);
+            _lockTargetCandidates.Add(new EyeTargetReference(
+                o.transform,
+                o.score - distance
+            ));
             if (distance < closestDistance)
             {
                 closestDistance = distance;
-                closest = o;
+                closest = o.transform;
             }
         }
 
@@ -707,5 +710,17 @@ public class Glance : MVRScript
     {
         base.RestoreFromJSON(jc, restorePhysical, restoreAppearance, presetAtoms, setMissingToDefault);
             _restored = true;
+    }
+
+    private struct EyeTargetReference
+    {
+        public Transform transform;
+        public float score;
+
+        public EyeTargetReference(Transform transform, float score = 1f)
+        {
+            this.transform = transform;
+            this.score = score;
+        }
     }
 }
