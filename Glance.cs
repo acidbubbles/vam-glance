@@ -1,8 +1,7 @@
-// TODO: Change width ratio
-// TODO: Vertical / Horizontal offset (look down)
-// TODO: Look at empties?
-// TODO: Player, look down
 // TODO: Snap when looking away, still apply randomize (e.g. random spots in the frustrum)
+// TODO: Line color change if target (cyan) or not (gray)
+// TODO: Hide the eye target
+// TODO: Validate high view
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -379,8 +378,10 @@ public class Glance : MVRScript
         if (!val)
         {
             if (_lockLineRenderer != null) Destroy(_lockLineRenderer.gameObject);
+            _lockLineRenderer = null;
             _lockLinePoints = null;
             if (_frustrumLineRenderer != null) Destroy(_frustrumLineRenderer.gameObject);
+            _frustrumLineRenderer = null;
             _frustrumLinePoints = null;
             return;
         }
@@ -399,10 +400,7 @@ public class Glance : MVRScript
         _lockLineRenderer = lockLineGo.AddComponent<LineRenderer>();
         _lockLineRenderer.useWorldSpace = true;
         _lockLineRenderer.material = new Material(Shader.Find("Sprites/Default")) {renderQueue = 4000};
-        _lockLineRenderer.colorGradient = new Gradient
-        {
-            colorKeys = new[] {new GradientColorKey(Color.green, 0f), new GradientColorKey(Color.green, 1f)}
-        };
+        SetLineColor(_lockLineRenderer, Color.green);
         _lockLineRenderer.widthMultiplier = 0.0004f;
         _lockLineRenderer.positionCount = 3;
         _lockLinePoints = new Vector3[3];
@@ -411,15 +409,21 @@ public class Glance : MVRScript
         _frustrumLineRenderer = frustrumLineGo.AddComponent<LineRenderer>();
         _frustrumLineRenderer.useWorldSpace = true;
         _frustrumLineRenderer.material = new Material(Shader.Find("Sprites/Default")) {renderQueue = 4000};
-        _frustrumLineRenderer.colorGradient = new Gradient
-        {
-            colorKeys = new[] {new GradientColorKey(Color.cyan, 0f), new GradientColorKey(Color.cyan, 1f)}
-        };
+        SetLineColor(_frustrumLineRenderer, Color.cyan);
         _frustrumLineRenderer.widthMultiplier = 0.0004f;
         _frustrumLineRenderer.positionCount = 16;
         _frustrumLinePoints = new Vector3[16];
 
         _nextLockTargetTime = 0f;
+    }
+
+    private static void SetLineColor(LineRenderer lineRenderer, Color color)
+    {
+        if (ReferenceEquals(lineRenderer, null)) return;
+        lineRenderer.colorGradient = new Gradient
+        {
+            colorKeys = new[] {new GradientColorKey(color, 0f), new GradientColorKey(color, 1f)}
+        };
     }
 
     private IEnumerator DeferredInit()
@@ -666,7 +670,8 @@ public class Glance : MVRScript
         SelectLockTarget();
         SelectSaccade();
 
-        if (!ReferenceEquals(_lockTarget, null))
+        var hasTarget = !ReferenceEquals(_lockTarget, null);
+        if (hasTarget)
         {
             _eyeTarget.control.position = _lockTarget.transform.position + _saccadeOffset;
         }
@@ -687,6 +692,7 @@ public class Glance : MVRScript
             _lockLinePoints[1] = _eyeTarget.control.position;
             _lockLinePoints[2] = _rEye.position;
             _lockLineRenderer.SetPositions(_lockLinePoints);
+            SetLineColor(_lockLineRenderer, hasTarget ? Color.green : Color.gray);
         }
     }
 
@@ -934,11 +940,13 @@ public class Glance : MVRScript
             {
                 _lockTarget = closest;
                 _nextLockTargetTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
+                SetLineColor(_frustrumLineRenderer, Color.cyan);
             }
             else
             {
                 _nextLockTargetTime = 0;
                 _nextGazeTime = 0;
+                SetLineColor(_frustrumLineRenderer, Color.gray);
             }
         }
     }
