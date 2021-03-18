@@ -766,6 +766,9 @@ public class Glance : MVRScript
     {
         if (_nextLockTargetTime > Time.time) return;
 
+        _saccadeOffset = Vector3.zero;
+        _nextSaccadeTime = Time.time + Random.Range(_saccadeMinDurationJSON.val, _saccadeMaxDurationJSON.val);
+
         if (_lockTargetCandidates.Count == 0)
         {
             _lockTarget = null;
@@ -793,9 +796,6 @@ public class Glance : MVRScript
         }
 
         if (_debugJSON.val && UITransform.gameObject.activeInHierarchy) UpdateDebugDisplay();
-
-        _saccadeOffset = Vector3.zero;
-        _nextSaccadeTime = Time.time + Random.Range(_saccadeMinDurationJSON.val, _saccadeMaxDurationJSON.val);
     }
 
     private void UpdateDebugDisplay()
