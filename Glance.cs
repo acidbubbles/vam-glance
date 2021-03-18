@@ -30,23 +30,23 @@ public class Glance : MVRScript
 
     private readonly JSONStorableBool _mirrorsJSON = new JSONStorableBool("Mirrors", true);
     private readonly JSONStorableFloat _playerEyesWeightJSON = new JSONStorableFloat("PlayerEyesWeight", 1f, 0f, 1f, true);
-    private readonly JSONStorableFloat _playerMouthWeightJSON = new JSONStorableFloat("PlayerMouthWeight", 1f, 0f, 1f, true);
+    private readonly JSONStorableFloat _playerMouthWeightJSON = new JSONStorableFloat("PlayerMouthWeight", 0.05f, 0f, 1f, true);
     private readonly JSONStorableFloat _windowCameraWeightJSON = new JSONStorableFloat("WindowCameraWeight", 1f, 0f, 1f, true);
     private readonly JSONStorableFloat _selfHandsWeightJSON = new JSONStorableFloat("SelfHandsWeight", 0f, 0f, 1f, true);
     private readonly JSONStorableFloat _selfGenitalsWeightJSON = new JSONStorableFloat("SelfGenitalsWeight", 1f, 0f, 1f, true);
     private readonly JSONStorableFloat _personsEyesWeightJSON = new JSONStorableFloat("PersonsEyesWeight", 1f, 0f, 1f, true);
-    private readonly JSONStorableFloat _personsMouthWeightJSON = new JSONStorableFloat("PersonsMouthWeight", 1f, 0f, 1f, true);
-    private readonly JSONStorableFloat _personsChestWeightJSON = new JSONStorableFloat("PersonsChestWeight", 1f, 0f, 1f, true);
-    private readonly JSONStorableFloat _personsNipplesWeightJSON = new JSONStorableFloat("PersonsNipplesWeight", 1f, 0f, 1f, true);
-    private readonly JSONStorableFloat _personsHandsWeightJSON = new JSONStorableFloat("PersonsHandsWeight", 1f, 0f, 1f, true);
-    private readonly JSONStorableFloat _personsGenitalsWeightJSON = new JSONStorableFloat("PersonsGenitalsWeight", 1f, 0f, 1f, true);
+    private readonly JSONStorableFloat _personsMouthWeightJSON = new JSONStorableFloat("PersonsMouthWeight", 0.05f, 0f, 1f, true);
+    private readonly JSONStorableFloat _personsChestWeightJSON = new JSONStorableFloat("PersonsChestWeight", 0f, 0f, 1f, true);
+    private readonly JSONStorableFloat _personsNipplesWeightJSON = new JSONStorableFloat("PersonsNipplesWeight", 0f, 0f, 1f, true);
+    private readonly JSONStorableFloat _personsHandsWeightJSON = new JSONStorableFloat("PersonsHandsWeight", 0.05f, 0f, 1f, true);
+    private readonly JSONStorableFloat _personsGenitalsWeightJSON = new JSONStorableFloat("PersonsGenitalsWeight", 0.5f, 0f, 1f, true);
     private readonly JSONStorableFloat _personsFeetWeightJSON = new JSONStorableFloat("PersonsFeetWeight", 0f, 0f, 1f, true);
     private readonly JSONStorableFloat _objectsWeightJSON = new JSONStorableFloat("ObjectsWeight", 0f, 0f, 1f, true);
     private readonly JSONStorableFloat _nothingWeightJSON = new JSONStorableFloat("NothingWeight", 0f, 0f, 1f, true);
-    private readonly JSONStorableFloat _frustrumJSON = new JSONStorableFloat("FrustrumFOV", 16f, 0f, 45f, true);
-    private readonly JSONStorableFloat _frustrumRatioJSON = new JSONStorableFloat("FrustrumRatio", 1.3f, 0.5f, 2f, true);
+    private readonly JSONStorableFloat _frustrumJSON = new JSONStorableFloat("FrustrumFOV", 20f, 0f, 45f, true);
+    private readonly JSONStorableFloat _frustrumRatioJSON = new JSONStorableFloat("FrustrumRatio", 1.4f, 0.5f, 2f, true);
     private readonly JSONStorableFloat _frustrumRotateJSON = new JSONStorableFloat("FrustrumRotate", -5f, -45f, 45f, true);
-    private readonly JSONStorableFloat _frustrumNearJSON = new JSONStorableFloat("FrustrumNear", 0.35f, 0f, 5f, false);
+    private readonly JSONStorableFloat _frustrumNearJSON = new JSONStorableFloat("FrustrumNear", 0.1f, 0f, 5f, false);
     private readonly JSONStorableFloat _frustrumFarJSON = new JSONStorableFloat("FrustrumFar", 5f, 0f, 5f, false);
     private readonly JSONStorableFloat _gazeMinDurationJSON = new JSONStorableFloat("GazeMinDuration", 0.5f, 0f, 10f, false);
     private readonly JSONStorableFloat _gazeMaxDurationJSON = new JSONStorableFloat("GazeMaxDuration", 2f, 0f, 10f, false);
@@ -55,7 +55,8 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _shakeRangeJSON = new JSONStorableFloat("ShakeRange", 0.015f, 0f, 0.1f, true);
     private readonly JSONStorableFloat _quickTurnThresholdJSON = new JSONStorableFloat("QuickTurnThreshold", 3f, 0f, 10f, false);
     private readonly JSONStorableFloat _quickTurnCooldownJSON = new JSONStorableFloat("QuickTurnCooldown", 0.5f, 0f, 2f, false);
-    private readonly JSONStorableFloat _cameraMouthEyesDistanceJSON = new JSONStorableFloat("CameraMouthEyesDistance", 0.1f, 0f, 0.3f, false);
+    private readonly JSONStorableFloat _cameraMouthDistanceJSON = new JSONStorableFloat("CameraMouthEyesDistance", 0.053f, 0f, 0.1f, false);
+    private readonly JSONStorableFloat _cameraEyesDistanceJSON = new JSONStorableFloat("CameraEyesDistance", 0.015f, 0f, 0.1f, false);
     private readonly JSONStorableBool _debugJSON = new JSONStorableBool("Debug", false);
     private readonly JSONStorableString _debugDisplayJSON = new JSONStorableString("DebugDisplay", "");
 
@@ -96,6 +97,8 @@ public class Glance : MVRScript
     private LineRenderer _lineRenderer;
     private Vector3[] _lineRendererPoints;
     private Transform _cameraMouth;
+    private Transform _cameraLEye;
+    private Transform _cameraREye;
 
     public override void Init()
     {
@@ -121,37 +124,38 @@ public class Glance : MVRScript
             _eyeTarget = containingAtom.freeControllers.First(fc => fc.name == "eyeTargetControl");
 
             CreateToggle(_mirrorsJSON).label = "Mirrors (look at themselves)";
-            CreateSlider(_playerEyesWeightJSON).label = "Player eyes (camera)";
-            CreateSlider(_playerMouthWeightJSON).label = "Player mouth (camera)";
-            CreateSlider(_windowCameraWeightJSON).label = "Window camera";
-            CreateSlider(_selfHandsWeightJSON).label = "Hands (self)";
-            CreateSlider(_selfGenitalsWeightJSON).label = "Genitals (self)";
-            CreateSlider(_personsEyesWeightJSON ).label = "Eyes (others)";
-            CreateSlider(_personsMouthWeightJSON ).label = "Mouth (others)";
-            CreateSlider(_personsChestWeightJSON ).label = "Chest (others)";
-            CreateSlider(_personsNipplesWeightJSON ).label = "Nipples (others)";
-            CreateSlider(_personsHandsWeightJSON ).label = "Hands (others)";
-            CreateSlider(_personsGenitalsWeightJSON ).label = "Genitals (others)";
-            CreateSlider(_personsFeetWeightJSON ).label = "Feet (others)";
-            CreateSlider(_objectsWeightJSON).label = "Objects (toys, cua, shapes)";
-            CreateSlider(_nothingWeightJSON).label = "Nothing (look away)";
+            CreateSlider(_playerEyesWeightJSON, false, "Eyes (you)", "F4");
+            CreateSlider(_playerMouthWeightJSON, false, "Mouth (you)", "F4");
+            CreateSlider(_windowCameraWeightJSON, false, "Window camera", "F4");
+            CreateSlider(_selfHandsWeightJSON, false, "Hands (self)", "F4");
+            CreateSlider(_selfGenitalsWeightJSON, false, "Genitals (self)", "F4");
+            CreateSlider(_personsEyesWeightJSON , false, "Eyes (others)", "F4");
+            CreateSlider(_personsMouthWeightJSON , false, "Mouth (others)", "F4");
+            CreateSlider(_personsChestWeightJSON , false, "Chest (others)", "F4");
+            CreateSlider(_personsNipplesWeightJSON , false, "Nipples (others)", "F4");
+            CreateSlider(_personsHandsWeightJSON , false, "Hands (others)", "F4");
+            CreateSlider(_personsGenitalsWeightJSON , false, "Genitals (others)", "F4");
+            CreateSlider(_personsFeetWeightJSON , false, "Feet (others)", "F4");
+            CreateSlider(_objectsWeightJSON, false, "Objects (toys, cua, shapes)", "F4");
+            CreateSlider(_nothingWeightJSON, false, "Nothing (spacey)", "F4");
 
             CreateToggle(_debugJSON).label = "Show debug information";
             CreateTextField(_debugDisplayJSON);
 
-            CreateSlider(_frustrumJSON, true).label = "Frustrum field of view";
-            CreateSlider(_frustrumRatioJSON, true).label = "Frustrum ratio (multiply width)";
-            CreateSlider(_frustrumRotateJSON, true).label = "Frustrum rotation (tilt)";
-            CreateSlider(_frustrumNearJSON, true).label = "Frustrum near (closest)";
-            CreateSlider(_frustrumFarJSON, true).label = "Frustrum far (furthest)";
-            CreateSlider(_gazeMinDurationJSON, true).label = "Min target lock time";
-            CreateSlider(_gazeMaxDurationJSON, true).label = "Max target lock time";
-            CreateSlider(_shakeMinDurationJSON, true).label = "Min eye saccade time";
-            CreateSlider(_shakeMaxDurationJSON, true).label = "Max eye saccade time";
-            CreateSlider(_shakeRangeJSON, true).label = "Range of eye saccade";
-            CreateSlider(_quickTurnThresholdJSON, true).label = "Quick turn threshold";
-            CreateSlider(_quickTurnCooldownJSON, true).label = "Quick turn cooldown";
-            CreateSlider(_cameraMouthEyesDistanceJSON, true).label = "Camera mouth eyes distance";
+            CreateSlider(_frustrumJSON, true, "Frustrum field of view", "F3");
+            CreateSlider(_frustrumRatioJSON, true, "Frustrum ratio (multiply width)", "F3");
+            CreateSlider(_frustrumRotateJSON, true, "Frustrum rotation (tilt)", "F3");
+            CreateSlider(_frustrumNearJSON, true, "Frustrum near (closest)", "F3");
+            CreateSlider(_frustrumFarJSON, true, "Frustrum far (furthest)", "F3");
+            CreateSlider(_gazeMinDurationJSON, true, "Min target lock time", "F3");
+            CreateSlider(_gazeMaxDurationJSON, true, "Max target lock time", "F3");
+            CreateSlider(_shakeMinDurationJSON, true, "Min eye saccade time", "F4");
+            CreateSlider(_shakeMaxDurationJSON, true, "Max eye saccade time", "F4");
+            CreateSlider(_shakeRangeJSON, true, "Range of eye saccade", "F4");
+            CreateSlider(_quickTurnThresholdJSON, true, "Quick turn threshold", "F3");
+            CreateSlider(_quickTurnCooldownJSON, true, "Quick turn cooldown", "F3");
+            CreateSlider(_cameraMouthDistanceJSON, true, "Camera mouth distance", "F4");
+            CreateSlider(_cameraEyesDistanceJSON, true, "Camera eyes distance", "F4");
 
             RegisterBool(_mirrorsJSON);
             RegisterFloat(_playerEyesWeightJSON);
@@ -180,7 +184,8 @@ public class Glance : MVRScript
             RegisterFloat(_shakeRangeJSON);
             RegisterFloat(_quickTurnThresholdJSON);
             RegisterFloat(_quickTurnCooldownJSON);
-            RegisterFloat(_cameraMouthEyesDistanceJSON);
+            RegisterFloat(_cameraMouthDistanceJSON);
+            RegisterFloat(_cameraEyesDistanceJSON);
 
             _mirrorsJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _playerEyesWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
@@ -204,7 +209,8 @@ public class Glance : MVRScript
             _gazeMaxDurationJSON.setCallbackFunction = val => _gazeMinDurationJSON.valNoCallback = Mathf.Min(val, _gazeMinDurationJSON.val);
             _shakeMinDurationJSON.setCallbackFunction = val => _shakeMaxDurationJSON.valNoCallback = Mathf.Max(val, _shakeMaxDurationJSON.val);
             _shakeMaxDurationJSON.setCallbackFunction = val => _shakeMinDurationJSON.valNoCallback = Mathf.Min(val, _shakeMinDurationJSON.val);
-            _cameraMouthEyesDistanceJSON.setCallbackFunction = _ => { if (_cameraMouth != null) _cameraMouth.localPosition = new Vector3(0, -_cameraMouthEyesDistanceJSON.val, 0); };
+            _cameraMouthDistanceJSON.setCallbackFunction = _ => { if (_cameraMouth != null) _cameraMouth.localPosition = new Vector3(0, -_cameraMouthDistanceJSON.val, 0); };
+            _cameraEyesDistanceJSON.setCallbackFunction = _ => { if (_cameraMouth != null) { _cameraLEye.localPosition = new Vector3(-_cameraEyesDistanceJSON.val, 0, 0); _cameraREye.localPosition = new Vector3(_cameraEyesDistanceJSON.val, 0, 0); } };
             _debugJSON.setCallbackFunction = SyncLineRenderer;
 
             SuperController.singleton.StartCoroutine(DeferredInit());
@@ -214,6 +220,13 @@ public class Glance : MVRScript
             SuperController.LogError($"{nameof(Glance)}.{nameof(Init)}: {e}");
             enabled = false;
         }
+    }
+
+    private void CreateSlider(JSONStorableFloat jsf, bool right, string label, string valueFormat = "F2")
+    {
+        var slider = CreateSlider(jsf, right);
+        slider.label = label;
+        slider.valueFormat = valueFormat;
     }
 
     private void SyncLineRenderer(bool val)
@@ -255,9 +268,19 @@ public class Glance : MVRScript
 
         try
         {
+            var camera = SuperController.singleton.centerCameraTarget.transform;
+
             _cameraMouth = new GameObject("Glance_CameraMouth").transform;
-            _cameraMouth.SetParent(SuperController.singleton.centerCameraTarget.transform, false);
-            _cameraMouth.localPosition = new Vector3(0, -_cameraMouthEyesDistanceJSON.val, 0);
+            _cameraMouth.SetParent(camera, false);
+            _cameraMouth.localPosition = new Vector3(0, -_cameraMouthDistanceJSON.val, 0);
+
+            _cameraLEye = new GameObject("Glance_CameraLEye").transform;
+            _cameraLEye.SetParent(camera, false);
+            _cameraLEye.localPosition = new Vector3(-_cameraEyesDistanceJSON.val, 0, 0);
+
+            _cameraREye = new GameObject("Glance_CameraREye").transform;
+            _cameraREye.SetParent(camera, false);
+            _cameraREye.localPosition = new Vector3(_cameraEyesDistanceJSON.val, 0, 0);
 
             _eyeTargetRestorePosition = _eyeTarget.control.position;
             _eyeBehaviorRestoreLookMode = _eyeBehavior.currentLookMode;
@@ -283,6 +306,8 @@ public class Glance : MVRScript
             _debugJSON.val = false;
 
             if (_cameraMouth != null) Destroy(_cameraMouth.gameObject);
+            if (_cameraLEye != null) Destroy(_cameraLEye.gameObject);
+            if (_cameraREye != null) Destroy(_cameraREye.gameObject);
 
             SuperController.singleton.onAtomUIDsChangedHandlers -= ONAtomUIDsChanged;
 
@@ -317,13 +342,13 @@ public class Glance : MVRScript
         _objects.Clear();
 
         if (_playerEyesWeightJSON.val >= 0.01f)
-            _objects.Add(new EyeTargetReference(SuperController.singleton.centerCameraTarget.transform, _playerEyesWeightJSON.val));
+        {
+            _objects.Add(new EyeTargetReference(_cameraLEye, _playerEyesWeightJSON.val / 2f));
+            _objects.Add(new EyeTargetReference(_cameraREye, _playerEyesWeightJSON.val / 2f));
+        }
 
         if (_playerMouthWeightJSON.val >= 0.01f)
-            _objects.Add(new EyeTargetReference(SuperController.singleton.centerCameraTarget.transform, _playerMouthWeightJSON.val));
-
-        if (_nothingWeightJSON.val > 0.01f)
-            _objects.Add(new EyeTargetReference(null, _nothingWeightJSON.val));
+            _objects.Add(new EyeTargetReference(_cameraMouth, _playerMouthWeightJSON.val));
 
         foreach (var atom in SuperController.singleton.GetAtoms())
         {
@@ -361,7 +386,7 @@ public class Glance : MVRScript
                     }
                     if (_personsMouthWeightJSON.val > 0.01f)
                     {
-                        _objects.Add(new EyeTargetReference(bones.First(b => b.name == "Tongue03").transform, _personsMouthWeightJSON.val));
+                        _objects.Add(new EyeTargetReference(bones.First(b => b.name == "tongue03").transform, _personsMouthWeightJSON.val));
                     }
                     if (_personsChestWeightJSON.val > 0.01f)
                     {
@@ -369,8 +394,8 @@ public class Glance : MVRScript
                     }
                     if (_personsNipplesWeightJSON.val > 0.01f)
                     {
-                        _objects.Add(new EyeTargetReference(bones.First(b => b.name == "lNipple").transform, _personsNipplesWeightJSON.val / 2f));
-                        _objects.Add(new EyeTargetReference(bones.First(b => b.name == "rNipple").transform, _personsNipplesWeightJSON.val / 2f));
+                        _objects.Add(new EyeTargetReference(atom.rigidbodies.First(b => b.name == "lNipple").transform, _personsNipplesWeightJSON.val / 2f));
+                        _objects.Add(new EyeTargetReference(atom.rigidbodies.First(b => b.name == "rNipple").transform, _personsNipplesWeightJSON.val / 2f));
                     }
                     if (_personsHandsWeightJSON.val > 0.01f)
                     {
@@ -383,7 +408,7 @@ public class Glance : MVRScript
                         if (selector.selectedCharacter.isMale)
                         {
                             _objects.Add(new EyeTargetReference(bones.First(b => b.name == "Gen3").transform, _personsGenitalsWeightJSON.val * 0.8f));
-                            _objects.Add(new EyeTargetReference(bones.First(b => b.name == "testes").transform, _personsGenitalsWeightJSON.val * 0.2f));
+                            _objects.Add(new EyeTargetReference(bones.First(b => b.name == "Testes").transform, _personsGenitalsWeightJSON.val * 0.2f));
                         }
                         else
                         {
@@ -392,10 +417,8 @@ public class Glance : MVRScript
                     }
                     if (_personsFeetWeightJSON.val > 0.01f)
                     {
-                        _objects.Add(new EyeTargetReference(bones.First(b => b.name == "lFoot").transform, _personsFeetWeightJSON.val / 4f));
-                        _objects.Add(new EyeTargetReference(bones.First(b => b.name == "lToe").transform, _personsFeetWeightJSON.val / 4f));
-                        _objects.Add(new EyeTargetReference(bones.First(b => b.name == "rFoot").transform, _personsFeetWeightJSON.val / 4f));
-                        _objects.Add(new EyeTargetReference(bones.First(b => b.name == "rToe").transform, _personsFeetWeightJSON.val / 4f));
+                        _objects.Add(new EyeTargetReference(bones.First(b => b.name == "lFoot").transform, _personsFeetWeightJSON.val / 2f));
+                        _objects.Add(new EyeTargetReference(bones.First(b => b.name == "rFoot").transform, _personsFeetWeightJSON.val / 2f));
                     }
 
                     break;
@@ -685,6 +708,15 @@ public class Glance : MVRScript
                 closestDistance = distance;
                 closest = o.transform;
             }
+        }
+
+        if (_nothingWeightJSON.val > 0.01f)
+        {
+            _lockTargetCandidates.Add(new EyeTargetReference(
+                null,
+                _nothingWeightJSON.val
+            ));
+            _lockTargetCandidatesScoreSum += _nothingWeightJSON.val;
         }
 
         if (_lockTargetCandidates.Count != originalCount)
