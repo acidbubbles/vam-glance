@@ -29,7 +29,7 @@ public class Glance : MVRScript
         "ReflectiveWoodPanel",
     });
 
-    private readonly JSONStorableBool _mirrorsJSON = new JSONStorableBool("Mirrors", true);
+    private readonly JSONStorableBool _mirrorsJSON = new JSONStorableBool("Mirrors", false);
     private readonly JSONStorableFloat _playerEyesWeightJSON = new JSONStorableFloat("PlayerEyesWeight", 1f, 0f, 1f, true);
     private readonly JSONStorableFloat _playerMouthWeightJSON = new JSONStorableFloat("PlayerMouthWeight", 0.05f, 0f, 1f, true);
     private readonly JSONStorableFloat _windowCameraWeightJSON = new JSONStorableFloat("WindowCameraWeight", 1f, 0f, 1f, true);
