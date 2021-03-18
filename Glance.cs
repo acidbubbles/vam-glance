@@ -1,5 +1,4 @@
 // TODO: Snap when looking away, still apply randomize (e.g. random spots in the frustrum)
-// TODO: Hide the eye target
 // TODO: Validate high view
 using System;
 using System.Collections;
@@ -80,6 +79,7 @@ public class Glance : MVRScript
     private Quaternion _unlockedTilt = Quaternion.Euler(10f, 0f, 0f);
     private readonly List<BoxCollider> _mirrors = new List<BoxCollider>();
     private readonly List<EyeTargetReference> _objects = new List<EyeTargetReference>();
+    private bool _eyeTargetRestoreHidden;
     private Vector3 _eyeTargetRestorePosition;
     private EyesControl.LookMode _eyeBehaviorRestoreLookMode;
     private bool _blinkRestoreEnabled;
@@ -456,6 +456,9 @@ public class Glance : MVRScript
             _cameraREye.localPosition = new Vector3(_cameraEyesDistanceJSON.val, 0, 0);
 
             _eyeTargetRestorePosition = _eyeTarget.control.position;
+            _eyeTargetRestoreHidden = _eyeTarget.hidden;
+            _eyeTarget.hidden = true;
+
             _eyeBehaviorRestoreLookMode = _eyeBehavior.currentLookMode;
             _eyeBehavior.currentLookMode = EyesControl.LookMode.Target;
 
@@ -485,9 +488,10 @@ public class Glance : MVRScript
 
             SuperController.singleton.onAtomUIDsChangedHandlers -= ONAtomUIDsChanged;
 
+            _eyeTarget.hidden = _eyeTargetRestoreHidden;
             _eyeTarget.control.position = _eyeTargetRestorePosition;
-            if (_eyeBehavior.currentLookMode != EyesControl.LookMode.Target)
-                _eyeBehavior.currentLookMode = _eyeBehaviorRestoreLookMode;
+
+            _eyeBehavior.currentLookMode = _eyeBehaviorRestoreLookMode;
             _eyelidBehavior.SetBoolParamValue("blinkEnabled", _blinkRestoreEnabled);
 
             _eyelidBehavior.blinkSpaceMin = 1f;
