@@ -580,15 +580,16 @@ public class Glance : MVRScript
     private void SelectLockTarget()
     {
         if (_nextLockTargetTime > Time.time) return;
-        _nextLockTargetTime = Time.time + Random.Range(_gazeMinDurationJSON.val, _gazeMaxDurationJSON.val);
 
         if (_lockTargetCandidates.Count == 0)
         {
             _lockTarget = null;
+            _nextLockTargetTime = float.PositiveInfinity;
         }
         else if(_lockTargetCandidates.Count == 1)
         {
             _lockTarget = _lockTargetCandidates[0].transform;
+            _nextLockTargetTime = float.PositiveInfinity;
         }
         else
         {
@@ -598,10 +599,12 @@ public class Glance : MVRScript
             for (var i = 0; i < _lockTargetCandidates.Count; i++)
             {
                 lockTarget = _lockTargetCandidates[i];
-                sum += lockTarget.score;
+                sum += lockTarget.weight;
                 if (lockRoll < sum) break;
             }
             _lockTarget = lockTarget.transform;
+            var gazeDuration = (_gazeMaxDurationJSON.val - _gazeMinDurationJSON.val) * lockTarget.weight;
+            _nextLockTargetTime = Time.time + Random.Range(_gazeMinDurationJSON.val, _gazeMinDurationJSON.val + gazeDuration);
         }
 
         if (_debugJSON.val && UITransform.gameObject.activeInHierarchy) UpdateDebugDisplay();
@@ -671,7 +674,7 @@ public class Glance : MVRScript
             var distance = Vector3.SqrMagnitude(bounds.center - eyesCenter);
             if (distance > _lookAtMirrorDistance) continue;
             if (!IsInAngleRange(eyesCenter, position)) continue;
-            var score = o.score - (distance / 10f);
+            var score = o.weight - (distance / 10f);
             _lockTargetCandidates.Add(new EyeTargetReference(
                 o.transform,
                 score
@@ -811,12 +814,12 @@ public class Glance : MVRScript
     private struct EyeTargetReference
     {
         public Transform transform;
-        public float score;
+        public float weight;
 
-        public EyeTargetReference(Transform transform, float score = 1f)
+        public EyeTargetReference(Transform transform, float weight = 1f)
         {
             this.transform = transform;
-            this.score = score;
+            this.weight = weight;
         }
     }
 }
