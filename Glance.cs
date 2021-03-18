@@ -311,11 +311,11 @@ public class Glance : MVRScript
             _lockMaxDurationJSON.setCallbackFunction = val => _lockMinDurationJSON.valNoCallback = Mathf.Min(val, _lockMinDurationJSON.val);
             _saccadeMinDurationJSON.setCallbackFunction = val => _saccadeMaxDurationJSON.valNoCallback = Mathf.Max(val, _saccadeMaxDurationJSON.val);
             _saccadeMaxDurationJSON.setCallbackFunction = val => _saccadeMinDurationJSON.valNoCallback = Mathf.Min(val, _saccadeMinDurationJSON.val);
-            _unlockedTiltJSON.setCallbackFunction = val => _unlockedTilt = Quaternion.Euler(val, 0f, 0f);
-            _blinkSpaceMinJSON.setCallbackFunction = val => _eyelidBehavior.blinkSpaceMin = val;
-            _blinkSpaceMaxJSON.setCallbackFunction = val => _eyelidBehavior.blinkSpaceMax = val;
-            _blinkTimeMinJSON.setCallbackFunction = val => _eyelidBehavior.blinkTimeMin = val;
-            _blinkTimeMaxJSON.setCallbackFunction = val => _eyelidBehavior.blinkTimeMax = val;
+            _unlockedTiltJSON.setCallbackFunction = val => { _unlockedTilt = Quaternion.Euler(val, 0f, 0f); _nextLockTargetTime = 0f; _nextGazeTime = 0f; };
+            _blinkSpaceMinJSON.setCallbackFunction = val => { _blinkSpaceMaxJSON.valNoCallback = Mathf.Max(val, _blinkSpaceMaxJSON.val); _eyelidBehavior.blinkSpaceMin = val; };
+            _blinkSpaceMaxJSON.setCallbackFunction = val => { _blinkSpaceMinJSON.valNoCallback = Mathf.Min(val, _blinkSpaceMinJSON.val); _eyelidBehavior.blinkSpaceMax = val; };
+            _blinkTimeMinJSON.setCallbackFunction = val => { _blinkTimeMaxJSON.valNoCallback = Mathf.Max(val, _blinkTimeMaxJSON.val); _eyelidBehavior.blinkTimeMin = val; };
+            _blinkTimeMaxJSON.setCallbackFunction = val => { _blinkTimeMinJSON.valNoCallback = Mathf.Min(val, _blinkTimeMinJSON.val); _eyelidBehavior.blinkTimeMax = val; };
             _cameraMouthDistanceJSON.setCallbackFunction = _ => { if (_cameraMouth != null) _cameraMouth.localPosition = new Vector3(0, -_cameraMouthDistanceJSON.val, 0); };
             _cameraEyesDistanceJSON.setCallbackFunction = _ => { if (_cameraMouth != null) { _cameraLEye.localPosition = new Vector3(-_cameraEyesDistanceJSON.val, 0, 0); _cameraREye.localPosition = new Vector3(_cameraEyesDistanceJSON.val, 0, 0); } };
             _debugJSON.setCallbackFunction = SyncDebug;
