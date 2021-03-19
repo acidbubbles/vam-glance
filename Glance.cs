@@ -746,7 +746,7 @@ public class Glance : MVRScript
         return IsEyeInRange(_lEye, _lEyeLimits) && IsEyeInRange(_rEye, _rEyeLimits);
     }
 
-    private bool IsEyeInRange(Transform eye, LookAtWithLimits limits)
+    private static bool IsEyeInRange(Transform eye, LookAtWithLimits limits)
     {
         var angles = eye.localEulerAngles;
         var y = angles.y;
@@ -760,6 +760,8 @@ public class Glance : MVRScript
             return false;
         }
 
+        // NOTE: We don't validate vertical extremes because it's visually acceptable to go further than the eye limit
+        /*
         var x = angles.x;
         if (x < 180)
         {
@@ -770,6 +772,7 @@ public class Glance : MVRScript
         {
             return false;
         }
+        */
 
         return true;
     }
@@ -780,7 +783,7 @@ public class Glance : MVRScript
         var yaw = Vector3.Angle(Vector3.ProjectOnPlane(lookAngle, Vector3.up), Vector3.forward);
         if (yaw > 26) return false;
         var pitch = Vector3.Angle(Vector3.ProjectOnPlane(lookAngle, Vector3.right), Vector3.forward);
-        if (pitch > 20) return false;
+        if (pitch > 30) return false;
         return true;
     }
 
