@@ -706,6 +706,8 @@ public class Glance : MVRScript
             _lockLineRenderer.SetPositions(_lockLinePoints);
             SetLineColor(_lockLineRenderer, hasTarget ? Color.green : Color.gray);
         }
+
+        if (!_eyeTarget.hidden) _eyeTarget.hidden = true;
     }
 
     private void CheckSyncNeeded()
