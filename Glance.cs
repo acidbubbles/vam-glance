@@ -13,7 +13,7 @@ public class Glance : MVRScript
 {
     private const float _mirrorScanSpan = 0.5f;
     private const float _objectScanSpan = 0.08f;
-    private const float _windowCameraCheckSpan = 2.19f;
+    private const float _syncCheckSpan = 2.19f;
     private const float _validateExtremesSpan = 0.04f;
     private const float _naturalLookDistance = 0.8f;
     private const float _angularVelocityPredictiveMultiplier = 0.5f;
@@ -69,6 +69,7 @@ public class Glance : MVRScript
     private EyesControl _eyeBehavior;
     private DAZMeshEyelidControl _eyelidBehavior;
     private Transform _head;
+    private FreeControllerV3 _headControl;
     private Transform _lEye;
     private LookAtWithLimits _lEyeLimits;
     private LookAtWithLimits _rEyeLimits;
@@ -77,6 +78,7 @@ public class Glance : MVRScript
     private FreeControllerV3 _eyeTarget;
     private Quaternion _frustrumTilt = Quaternion.Euler(-5f, 0f, 0f);
     private Quaternion _unlockedTilt = Quaternion.Euler(10f, 0f, 0f);
+    private bool _mirrorsSync;
     private readonly List<BoxCollider> _mirrors = new List<BoxCollider>();
     private readonly List<EyeTargetReference> _objects = new List<EyeTargetReference>();
     private bool _eyeTargetRestoreHidden;
@@ -87,7 +89,7 @@ public class Glance : MVRScript
     private readonly List<EyeTargetReference> _lockTargetCandidates = new List<EyeTargetReference>();
     private float _lockTargetCandidatesScoreSum;
     private float _nextMirrorScanTime;
-    private float _nextWindowCameraCheckTime;
+    private float _nextSyncCheckTime;
     private bool _windowCameraInObjects;
     private BoxCollider _lookAtMirror;
     private float _lookAtMirrorDistance;
@@ -123,6 +125,7 @@ public class Glance : MVRScript
             _eyeBehavior = (EyesControl) containingAtom.GetStorableByID("Eyes");
             _eyelidBehavior = (DAZMeshEyelidControl) containingAtom.GetStorableByID("EyelidControl");
             _bones = containingAtom.transform.Find("rescale2").GetComponentsInChildren<DAZBone>();
+            _headControl = containingAtom.freeControllers.FirstOrDefault(fc => fc.name == "headControl");
             _head = _bones.First(eye => eye.name == "head").transform;
             var lEyeBone = _bones.First(eye => eye.name == "lEye");
             _lEye = lEyeBone.transform;
@@ -509,15 +512,17 @@ public class Glance : MVRScript
 
     private void SyncMirrors()
     {
+        _mirrorsSync = false;
         _mirrors.Clear();
 
-        if (!_mirrorsJSON.val) return;
+        if (!_mirrorsJSON.val && !_headControl.possessed) return;
 
         _mirrors.AddRange(SuperController.singleton.GetAtoms()
             .Where(a => _mirrorAtomTypes.Contains(a.type))
             .Where(a => a.on)
             .Select(a => a.GetComponentInChildren<BoxCollider>())
             .Where(c => c != null));
+        _mirrorsSync = true;
     }
 
     private void SyncObjects()
@@ -527,7 +532,7 @@ public class Glance : MVRScript
         _nextObjectsScanTime = 0f;
         _nextLockTargetTime = 0f;
         _nextMirrorScanTime = 0f;
-        _nextWindowCameraCheckTime = _windowCameraCheckSpan;
+        _nextSyncCheckTime = _syncCheckSpan;
 
         if (_playerEyesWeightJSON.val >= 0.01f)
         {
@@ -645,12 +650,13 @@ public class Glance : MVRScript
     private void ClearState()
     {
         _lookAtMirror = null;
+        _mirrorsSync = false;
         _mirrors.Clear();
         _objects.Clear();
         _lockTargetCandidates.Clear();
         _lockTargetCandidatesScoreSum = 0f;
         _nextMirrorScanTime = 0f;
-        _nextWindowCameraCheckTime = 0f;
+        _nextSyncCheckTime = 0f;
         _nextObjectsScanTime = 0f;
         _nextValidateExtremesTime = 0f;
         _nextLockTargetTime = 0f;
@@ -666,7 +672,7 @@ public class Glance : MVRScript
         var eyesCenter = (_lEye.position + _rEye.position) / 2f;
 
         DetectHighAngularVelocity();
-        CheckWindowCamera();
+        CheckSyncNeeded();
         ScanMirrors(eyesCenter);
         ScanObjects(eyesCenter);
         InvalidateExtremes();
@@ -702,17 +708,23 @@ public class Glance : MVRScript
         }
     }
 
-    private void CheckWindowCamera()
+    private void CheckSyncNeeded()
     {
-        if (_nextWindowCameraCheckTime > Time.time) return;
-        _nextWindowCameraCheckTime = Time.time + _windowCameraCheckSpan;
+        if (_nextSyncCheckTime > Time.time) return;
+        _nextSyncCheckTime = Time.time + _syncCheckSpan;
 
-        if (!(_windowCameraWeightJSON.val >= 0.01)) return;
+        if (_windowCameraWeightJSON.val >= 0.01)
+        {
+            if (!_windowCameraInObjects && _windowCameraControl.val)
+                SyncObjects();
+            else if (_windowCameraInObjects && !_windowCameraControl.val)
+                SyncObjects();
+        }
 
-        if (!_windowCameraInObjects && _windowCameraControl.val)
-            SyncObjects();
-        else if (_windowCameraInObjects && !_windowCameraControl.val)
-            SyncObjects();
+        if (!_mirrorsJSON.val && (_headControl.possessed != _mirrorsSync))
+        {
+            SyncMirrors();
+        }
     }
 
     private void InvalidateExtremes()
