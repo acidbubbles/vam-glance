@@ -16,7 +16,7 @@ public class Glance : MVRScript
     private const float _syncCheckSpan = 2.19f;
     private const float _validateExtremesSpan = 0.04f;
     private const float _naturalLookDistance = 0.8f;
-    private const float _angularVelocityPredictiveMultiplier = 0.5f;
+    private static readonly Vector3 _angularVelocityPredictiveMultiplier = new Vector3(0.3f, 0.5f, 1f);
 
     private static readonly HashSet<string> _mirrorAtomTypes = new HashSet<string>(new[]
     {
@@ -51,7 +51,7 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _saccadeMinDurationJSON = new JSONStorableFloat("SaccadeMinDuration", 0.2f, 0f, 1f, false);
     private readonly JSONStorableFloat _saccadeMaxDurationJSON = new JSONStorableFloat("SaccadeMaxDuration", 0.5f, 0f, 1f, false);
     private readonly JSONStorableFloat _saccadeRangeJSON = new JSONStorableFloat("SaccadeRange", 0.015f, 0f, 0.1f, true);
-    private readonly JSONStorableFloat _quickTurnThresholdJSON = new JSONStorableFloat("QuickTurnThreshold", 3f, 0f, 10f, false);
+    private readonly JSONStorableFloat _quickTurnThresholdJSON = new JSONStorableFloat("QuickTurnThreshold", 4f, 0f, 10f, false);
     private readonly JSONStorableFloat _quickTurnCooldownJSON = new JSONStorableFloat("QuickTurnCooldown", 0.5f, 0f, 2f, false);
     private readonly JSONStorableFloat _unlockedTiltJSON = new JSONStorableFloat("UnlockedTilt", 10f, -30f, 30f, false);
     private readonly JSONStorableFloat _blinkSpaceMinJSON = new JSONStorableFloat("BlinkSpaceMin", 1f, 0f, 10f, false);
@@ -671,8 +671,8 @@ public class Glance : MVRScript
     {
         var eyesCenter = (_lEye.position + _rEye.position) / 2f;
 
-        DetectHighAngularVelocity();
         CheckSyncNeeded();
+        DetectHighAngularVelocity();
         ScanMirrors(eyesCenter);
         ScanObjects(eyesCenter);
         InvalidateExtremes();
@@ -738,7 +738,7 @@ public class Glance : MVRScript
 
         _nextGazeTime = 0f;
         _nextLockTargetTime = 0f;
-        _angularVelocityBurstCooldown = _quickTurnCooldownJSON.val;
+        _angularVelocityBurstCooldown = 0f;
     }
 
     private bool AreEyesInRange()
@@ -800,32 +800,39 @@ public class Glance : MVRScript
 
     private void SelectGazeTarget(Vector3 eyesCenter)
     {
-        if (_nextGazeTime > Time.time || _angularVelocityBurstCooldown > 0) return;
+        if (_nextGazeTime > Time.time) return;
         _nextGazeTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
 
         var localAngularVelocity = transform.InverseTransformDirection(_headRB.angularVelocity);
-        var angularVelocity = Quaternion.Euler(localAngularVelocity * Mathf.Rad2Deg * _angularVelocityPredictiveMultiplier);
+        var angularVelocity = Vector3.Scale(localAngularVelocity * Mathf.Rad2Deg, _angularVelocityPredictiveMultiplier);
+        var angularVelocityQ = Quaternion.Euler(new Vector3(Mathf.Clamp(angularVelocity.x, -24, 24), Mathf.Clamp(angularVelocity.y, -25f, 25f), 0f));
 
-        _gazeTarget = eyesCenter + (_head.rotation * _frustrumTilt * _unlockedTilt * angularVelocity * Vector3.forward) * _naturalLookDistance;
+        _gazeTarget = eyesCenter + (_head.rotation * _frustrumTilt * _unlockedTilt * angularVelocityQ * Vector3.forward) * _naturalLookDistance;
     }
 
     private void DetectHighAngularVelocity()
     {
         // Immediate recompute if the head moves fast
-        if (_angularVelocityBurstCooldown != 0)
-        {
-            if (_angularVelocityBurstCooldown > Time.time) return;
-            _angularVelocityBurstCooldown = 0f;
-        }
-
         if (_headRB.angularVelocity.sqrMagnitude > _quickTurnThresholdJSON.val)
         {
-            _angularVelocityBurstCooldown = Time.time + _quickTurnCooldownJSON.val;
+            var nextTime = Time.time + _quickTurnCooldownJSON.val;
+            if (_angularVelocityBurstCooldown < Time.time)
+            {
+                _eyelidBehavior.Blink();
+                _angularVelocityBurstCooldown = nextTime;
+            }
+
+            _lockTarget = null;
             _nextGazeTime = 0f;
-            _nextObjectsScanTime = 0.1f;
-            _nextLockTargetTime = 0.1f;
-            _nextValidateExtremesTime = 0.1f;
-            _eyelidBehavior.Blink();
+            _nextObjectsScanTime = nextTime;
+            _nextLockTargetTime = nextTime;
+            _nextSaccadeTime = nextTime;
+            _nextValidateExtremesTime = nextTime;
+        }
+        else if (_angularVelocityBurstCooldown != 0)
+        {
+            if (_angularVelocityBurstCooldown < Time.time)
+                _angularVelocityBurstCooldown = 0f;
         }
     }
 
