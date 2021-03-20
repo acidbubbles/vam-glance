@@ -136,6 +136,15 @@ public class Glance : MVRScript
             _headRB = _head.GetComponent<Rigidbody>();
             _eyeTarget = containingAtom.freeControllers.First(fc => fc.name == "eyeTargetControl");
             _windowCameraControl =  SuperController.singleton.GetAtoms().FirstOrDefault(a => a.type == "WindowCamera")?.GetStorableByID("CameraControl")?.GetBoolJSONParam("cameraOn");
+            var presetsJSON = new JSONStorableStringChooser("Presets", new List<string>
+            {
+                "Defaults",
+                "Horny",
+                "Shy",
+                "Focused",
+                "Anime",
+            }, "", "Apply preset") { isStorable = false };
+            var focusOnPlayerJSON = new JSONStorableAction("FocusOnPlayer", FocusOnPlayerCallback);
 
             CreateToggle(_mirrorsJSON).label = "Mirrors (look at themselves)";
             CreateSlider(_playerEyesWeightJSON, false, "Eyes (you)", "F4");
@@ -152,88 +161,10 @@ public class Glance : MVRScript
             CreateSlider(_personsFeetWeightJSON , false, "Feet (others)", "F4");
             CreateSlider(_objectsWeightJSON, false, "Objects (toys, cua, shapes)", "F4");
             CreateSlider(_nothingWeightJSON, false, "Nothing (spacey)", "F4");
-
             CreateToggle(_debugJSON).label = "Show debug information";
             CreateTextField(_debugDisplayJSON);
 
-            var presetsJSON = new JSONStorableStringChooser("Presets", new List<string>
-            {
-                "Defaults",
-                "Horny",
-                "Shy",
-                "Focused",
-                "Anime",
-            }, "", "Apply preset") { isStorable = false };
             CreateScrollablePopup(presetsJSON, true);
-            presetsJSON.setCallbackFunction = val =>
-            {
-                if (!_ready) return;
-                if (string.IsNullOrEmpty(val)) return;
-                presetsJSON.valNoCallback = "";
-                ResetToDefaults();
-                switch (val)
-                {
-                    case "Horny":
-                        _playerMouthWeightJSON.val = 0.8f;
-                        _personsMouthWeightJSON.val = 0.8f;
-                        _personsChestWeightJSON.val = 0.4f;
-                        _personsNipplesWeightJSON.val = 0.4f;
-                        _personsGenitalsWeightJSON.val = 1f;
-                        _lockMinDurationJSON.val = 0.4f;
-                        _lockMaxDurationJSON.val = 1.2f;
-                        _saccadeMinDurationJSON.val = 0.1f;
-                        _saccadeMaxDurationJSON.val = 0.4f;
-                        _saccadeRangeJSON.val = 0.015f;
-                        _blinkTimeMinJSON.val = 0.1f;
-                        _blinkTimeMaxJSON.val = 0.2f;
-                        _blinkSpaceMinJSON.val = 0.8f;
-                        _blinkSpaceMaxJSON.val = 3f;
-                        break;
-                    case "Shy":
-                        _frustrumJSON.val = 24f;
-                        _playerEyesWeightJSON.val = 0.2f;
-                        _personsEyesWeightJSON.val = 0.2f;
-                        _nothingWeightJSON.val = 0.4f;
-                        _lockMinDurationJSON.val = 0.6f;
-                        _lockMaxDurationJSON.val = 1.2f;
-                        _saccadeMinDurationJSON.val = 0.1f;
-                        _saccadeMaxDurationJSON.val = 0.4f;
-                        _saccadeRangeJSON.val = 0.025f;
-                        _unlockedTiltJSON.val = 12f;
-                        _blinkTimeMinJSON.val = 0.1f;
-                        _blinkTimeMaxJSON.val = 0.4f;
-                        _blinkSpaceMinJSON.val = 0.5f;
-                        _blinkSpaceMaxJSON.val = 4f;
-                        break;
-                    case "Focused":
-                        _playerMouthWeightJSON.val = 0.1f;
-                        _personsMouthWeightJSON.val = 0.1f;
-                        _lockMinDurationJSON.val = 2f;
-                        _lockMaxDurationJSON.val = 4f;
-                        _saccadeMinDurationJSON.val = 0.8f;
-                        _saccadeMaxDurationJSON.val = 1.4f;
-                        _saccadeRangeJSON.val = 0.01f;
-                        _unlockedTiltJSON.val = 4f;
-                        _blinkTimeMinJSON.val = 0.2f;
-                        _blinkTimeMaxJSON.val = 0.3f;
-                        _blinkSpaceMinJSON.val = 4f;
-                        _blinkSpaceMaxJSON.val = 8f;
-                        break;
-                    case "Anime":
-                        _personsMouthWeightJSON.val = 0f;
-                        _playerMouthWeightJSON.val = 0f;
-                        _frustrumJSON.val = 35f;
-                        _saccadeMinDurationJSON.val = 0.07f;
-                        _saccadeMaxDurationJSON.val = 0.07f;
-                        _saccadeRangeJSON.val = 0.035f;
-                        _blinkSpaceMinJSON.val = 0.3f;
-                        _blinkSpaceMaxJSON.val = 3f;
-                        _blinkTimeMinJSON.val = 0.15f;
-                        _blinkTimeMaxJSON.val = 0.15f;
-                        break;
-                }
-            };
-
             CreateSlider(_frustrumJSON, true, "Frustrum field of view", "F3");
             CreateSlider(_frustrumRatioJSON, true, "Frustrum ratio (multiply width)", "F3");
             CreateSlider(_frustrumTiltJSON, true, "Frustrum tilt", "F3");
@@ -289,6 +220,7 @@ public class Glance : MVRScript
             RegisterFloat(_blinkTimeMaxJSON);
             RegisterFloat(_cameraMouthDistanceJSON);
             RegisterFloat(_cameraEyesDistanceJSON);
+            RegisterAction(focusOnPlayerJSON);
 
             _mirrorsJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _playerEyesWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
@@ -305,6 +237,7 @@ public class Glance : MVRScript
             _personsFeetWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _objectsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _nothingWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
+            presetsJSON.setCallbackFunction = val => { ApplyPreset(val, presetsJSON); };
             _frustrumTiltJSON.setCallbackFunction = val => _frustrumTilt = Quaternion.Euler(val, 0f, 0f);
             _frustrumNearJSON.setCallbackFunction = val => _frustrumFarJSON.valNoCallback = Mathf.Max(val, _frustrumFarJSON.val);
             _frustrumFarJSON.setCallbackFunction = val => _frustrumNearJSON.valNoCallback = Mathf.Min(val, _frustrumNearJSON.val);
@@ -327,6 +260,75 @@ public class Glance : MVRScript
         {
             SuperController.LogError($"{nameof(Glance)}.{nameof(Init)}: {e}");
             enabled = false;
+        }
+    }
+
+    private void ApplyPreset(string val, JSONStorableStringChooser presetsJSON)
+    {
+        if (!_ready) return;
+        if (string.IsNullOrEmpty(val)) return;
+        presetsJSON.valNoCallback = "";
+        ResetToDefaults();
+        switch (val)
+        {
+            case "Horny":
+                _playerMouthWeightJSON.val = 0.8f;
+                _personsMouthWeightJSON.val = 0.8f;
+                _personsChestWeightJSON.val = 0.4f;
+                _personsNipplesWeightJSON.val = 0.4f;
+                _personsGenitalsWeightJSON.val = 1f;
+                _lockMinDurationJSON.val = 0.4f;
+                _lockMaxDurationJSON.val = 1.2f;
+                _saccadeMinDurationJSON.val = 0.1f;
+                _saccadeMaxDurationJSON.val = 0.4f;
+                _saccadeRangeJSON.val = 0.015f;
+                _blinkTimeMinJSON.val = 0.1f;
+                _blinkTimeMaxJSON.val = 0.2f;
+                _blinkSpaceMinJSON.val = 0.8f;
+                _blinkSpaceMaxJSON.val = 3f;
+                break;
+            case "Shy":
+                _frustrumJSON.val = 24f;
+                _playerEyesWeightJSON.val = 0.2f;
+                _personsEyesWeightJSON.val = 0.2f;
+                _nothingWeightJSON.val = 0.4f;
+                _lockMinDurationJSON.val = 0.6f;
+                _lockMaxDurationJSON.val = 1.2f;
+                _saccadeMinDurationJSON.val = 0.1f;
+                _saccadeMaxDurationJSON.val = 0.4f;
+                _saccadeRangeJSON.val = 0.025f;
+                _unlockedTiltJSON.val = 12f;
+                _blinkTimeMinJSON.val = 0.1f;
+                _blinkTimeMaxJSON.val = 0.4f;
+                _blinkSpaceMinJSON.val = 0.5f;
+                _blinkSpaceMaxJSON.val = 4f;
+                break;
+            case "Focused":
+                _playerMouthWeightJSON.val = 0.1f;
+                _personsMouthWeightJSON.val = 0.1f;
+                _lockMinDurationJSON.val = 2f;
+                _lockMaxDurationJSON.val = 4f;
+                _saccadeMinDurationJSON.val = 0.8f;
+                _saccadeMaxDurationJSON.val = 1.4f;
+                _saccadeRangeJSON.val = 0.01f;
+                _unlockedTiltJSON.val = 4f;
+                _blinkTimeMinJSON.val = 0.2f;
+                _blinkTimeMaxJSON.val = 0.3f;
+                _blinkSpaceMinJSON.val = 4f;
+                _blinkSpaceMaxJSON.val = 8f;
+                break;
+            case "Anime":
+                _personsMouthWeightJSON.val = 0f;
+                _playerMouthWeightJSON.val = 0f;
+                _frustrumJSON.val = 35f;
+                _saccadeMinDurationJSON.val = 0.07f;
+                _saccadeMaxDurationJSON.val = 0.07f;
+                _saccadeRangeJSON.val = 0.035f;
+                _blinkSpaceMinJSON.val = 0.3f;
+                _blinkSpaceMaxJSON.val = 3f;
+                _blinkTimeMinJSON.val = 0.15f;
+                _blinkTimeMaxJSON.val = 0.15f;
+                break;
         }
     }
 
@@ -979,6 +981,16 @@ public class Glance : MVRScript
                 SetLineColor(_frustrumLineRenderer, Color.gray);
             }
         }
+    }
+
+    private void FocusOnPlayerCallback()
+    {
+        _nextObjectsScanTime = Time.time + _lockMaxDurationJSON.val;
+        _nextSaccadeTime = Time.time + _saccadeMaxDurationJSON.val;
+        _nextMirrorScanTime = Time.time + _lockMaxDurationJSON.val;
+        _nextValidateExtremesTime = Time.time + _lockMaxDurationJSON.val;
+        _lockTarget = SuperController.singleton.centerCameraTarget.transform;
+        _lookAtMirror = null;
     }
 
     private void ScanMirrors(Vector3 eyesCenter)
