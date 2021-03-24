@@ -118,13 +118,6 @@ public class Glance : MVRScript
 
     public override void Init()
     {
-        // var look = new Vector2(2, 4);
-        // var clamp = new Vector2(3, 3);
-        // var clamped = Vector2.ClampMagnitude(look / 4f, 1f) * 4f;
-        // SuperController.singleton.ClearMessages();
-        // SuperController.LogMessage(clamped.ToString());
-
-
         if (containingAtom.type != "Person")
         {
             enabled = false;
@@ -851,9 +844,10 @@ public class Glance : MVRScript
             }
 
             _lockTarget = null;
+            // Rescan projected direction immediately
+            _nextObjectsScanTime = 0f;
+            _nextLockTargetTime = 0f;
             _nextGazeTime = 0f;
-            _nextObjectsScanTime = nextTime;
-            _nextLockTargetTime = nextTime;
             _nextSaccadeTime = nextTime;
             _nextValidateExtremesTime = nextTime;
         }
@@ -957,8 +951,13 @@ public class Glance : MVRScript
 
         if (_objects.Count == 0) return;
 
+        _nextGazeTime = 0f;
+        SelectGazeTarget(eyesCenter);
+        // NOTE: Average expected direction and actual direction, since we don't know if the head will stop or not
+        var lookDirection = (((_head.rotation * _frustrumTilt * Vector3.forward) + (_gazeTarget - eyesCenter).normalized) / 2f).normalized;
+
         //var planes = GeometryUtility.CalculateFrustumPlanes(SuperController.singleton.centerCameraTarget.targetCamera);
-        CalculateFrustum(eyesCenter, _head.rotation * _frustrumTilt * Vector3.forward, _frustrumJSON.val * Mathf.Deg2Rad, _frustrumRatioJSON.val, _frustrumNearJSON.val, _frustrumFarJSON.val, _frustrumPlanes);
+        CalculateFrustum(eyesCenter, lookDirection, _frustrumJSON.val * Mathf.Deg2Rad, _frustrumRatioJSON.val, _frustrumNearJSON.val, _frustrumFarJSON.val, _frustrumPlanes);
 
         Transform closest = null;
         var closestDistance = float.PositiveInfinity;
@@ -1003,7 +1002,6 @@ public class Glance : MVRScript
             else
             {
                 _nextLockTargetTime = 0;
-                _nextGazeTime = 0;
                 SetLineColor(_frustrumLineRenderer, Color.gray);
             }
         }
