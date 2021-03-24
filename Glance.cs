@@ -16,7 +16,6 @@ public class Glance : MVRScript
     private const float _syncCheckSpan = 2.19f;
     private const float _validateExtremesSpan = 0.04f;
     private const float _naturalLookDistance = 0.8f;
-    private static readonly Vector3 _angularVelocityPredictiveMultiplier = new Vector3(0.3f, 0.5f, 1f);
 
     private static readonly HashSet<string> _mirrorAtomTypes = new HashSet<string>(new[]
     {
@@ -53,6 +52,10 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _saccadeRangeJSON = new JSONStorableFloat("SaccadeRange", 0.015f, 0f, 0.1f, true);
     private readonly JSONStorableFloat _quickTurnThresholdJSON = new JSONStorableFloat("QuickTurnThreshold", 4f, 0f, 10f, false);
     private readonly JSONStorableFloat _quickTurnCooldownJSON = new JSONStorableFloat("QuickTurnCooldown", 0.5f, 0f, 2f, false);
+    private readonly JSONStorableFloat _quickTurnMaxXJSON = new JSONStorableFloat("QuickTurnMaxX", 24f, 0f, 26f, false);
+    private readonly JSONStorableFloat _quickTurnMaxYJSON = new JSONStorableFloat("QuickTurnMaxY", 25f, 0f, 24f, false);
+    private readonly JSONStorableFloat _quickTurnMultiplierXJSON = new JSONStorableFloat("QuickTurnMultiplierX", 0.5f, 0f, 1f, false);
+    private readonly JSONStorableFloat _quickTurnMultiplierYJSON = new JSONStorableFloat("QuickTurnMultiplierY", 0.3f, 0f, 1f, false);
     private readonly JSONStorableFloat _unlockedTiltJSON = new JSONStorableFloat("UnlockedTilt", 10f, -30f, 30f, false);
     private readonly JSONStorableFloat _blinkSpaceMinJSON = new JSONStorableFloat("BlinkSpaceMin", 1f, 0f, 10f, false);
     private readonly JSONStorableFloat _blinkSpaceMaxJSON = new JSONStorableFloat("BlinkSpaceMax", 7f, 0f, 10f, false);
@@ -78,6 +81,7 @@ public class Glance : MVRScript
     private FreeControllerV3 _eyeTarget;
     private Quaternion _frustrumTilt = Quaternion.Euler(-5f, 0f, 0f);
     private Quaternion _unlockedTilt = Quaternion.Euler(10f, 0f, 0f);
+    private Vector2 _angularVelocityPredictiveMultiplier = new Vector2(0.3f, 0.5f);
     private bool _mirrorsSync;
     private readonly List<BoxCollider> _mirrors = new List<BoxCollider>();
     private readonly List<EyeTargetReference> _objects = new List<EyeTargetReference>();
@@ -114,6 +118,13 @@ public class Glance : MVRScript
 
     public override void Init()
     {
+        // var look = new Vector2(2, 4);
+        // var clamp = new Vector2(3, 3);
+        // var clamped = Vector2.ClampMagnitude(look / 4f, 1f) * 4f;
+        // SuperController.singleton.ClearMessages();
+        // SuperController.LogMessage(clamped.ToString());
+
+
         if (containingAtom.type != "Person")
         {
             enabled = false;
@@ -177,6 +188,10 @@ public class Glance : MVRScript
             CreateSlider(_saccadeRangeJSON, true, "Range of eye saccade", "F4");
             CreateSlider(_quickTurnThresholdJSON, true, "Quick turn threshold", "F3");
             CreateSlider(_quickTurnCooldownJSON, true, "Quick turn cooldown", "F3");
+            CreateSlider(_quickTurnMaxXJSON, true).label = "Quick turn max X";
+            CreateSlider(_quickTurnMaxYJSON, true).label = "Quick turn max Y";
+            CreateSlider(_quickTurnMultiplierXJSON, true).label = "Quick turn multiplier X";
+            CreateSlider(_quickTurnMultiplierYJSON, true).label = "Quick turn multiplier Y";
             CreateSlider(_unlockedTiltJSON, true, "Spacey tilt", "F2");
             CreateSlider(_blinkSpaceMinJSON, true, "Blink space min", "F2");
             CreateSlider(_blinkSpaceMaxJSON, true, "Blink space max", "F3");
@@ -213,6 +228,10 @@ public class Glance : MVRScript
             RegisterFloat(_saccadeRangeJSON);
             RegisterFloat(_quickTurnThresholdJSON);
             RegisterFloat(_quickTurnCooldownJSON);
+            RegisterFloat(_quickTurnMaxXJSON);
+            RegisterFloat(_quickTurnMaxYJSON);
+            RegisterFloat(_quickTurnMultiplierXJSON);
+            RegisterFloat(_quickTurnMultiplierYJSON);
             RegisterFloat(_unlockedTiltJSON);
             RegisterFloat(_blinkSpaceMinJSON);
             RegisterFloat(_blinkSpaceMaxJSON);
@@ -245,6 +264,8 @@ public class Glance : MVRScript
             _lockMaxDurationJSON.setCallbackFunction = val => _lockMinDurationJSON.valNoCallback = Mathf.Min(val, _lockMinDurationJSON.val);
             _saccadeMinDurationJSON.setCallbackFunction = val => _saccadeMaxDurationJSON.valNoCallback = Mathf.Max(val, _saccadeMaxDurationJSON.val);
             _saccadeMaxDurationJSON.setCallbackFunction = val => _saccadeMinDurationJSON.valNoCallback = Mathf.Min(val, _saccadeMinDurationJSON.val);
+            _quickTurnMultiplierXJSON.setCallbackFunction = val => _angularVelocityPredictiveMultiplier = new Vector3(_quickTurnMultiplierXJSON.val, _quickTurnMultiplierYJSON.val, 0);
+            _quickTurnMultiplierYJSON.setCallbackFunction = val => _angularVelocityPredictiveMultiplier = new Vector3(_quickTurnMultiplierXJSON.val, _quickTurnMultiplierYJSON.val, 0);
             _unlockedTiltJSON.setCallbackFunction = val => { _unlockedTilt = Quaternion.Euler(val, 0f, 0f); _nextLockTargetTime = 0f; _nextGazeTime = 0f; };
             _blinkSpaceMinJSON.setCallbackFunction = val => { _blinkSpaceMaxJSON.valNoCallback = Mathf.Max(val, _blinkSpaceMaxJSON.val); _eyelidBehavior.blinkSpaceMin = val; };
             _blinkSpaceMaxJSON.setCallbackFunction = val => { _blinkSpaceMinJSON.valNoCallback = Mathf.Min(val, _blinkSpaceMinJSON.val); _eyelidBehavior.blinkSpaceMax = val; };
@@ -806,10 +827,15 @@ public class Glance : MVRScript
         _nextGazeTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
 
         var localAngularVelocity = transform.InverseTransformDirection(_headRB.angularVelocity);
-        var angularVelocity = Vector3.Scale(localAngularVelocity * Mathf.Rad2Deg, _angularVelocityPredictiveMultiplier);
-        var angularVelocityQ = Quaternion.Euler(new Vector3(Mathf.Clamp(angularVelocity.x, -24, 24), Mathf.Clamp(angularVelocity.y, -25f, 25f), 0f));
+        var angularVelocity = Vector2.Scale(localAngularVelocity * Mathf.Rad2Deg, _angularVelocityPredictiveMultiplier);
+        var maxX = _quickTurnMaxXJSON.val;
+        var maxY = _quickTurnMaxYJSON.val;
+        var clampedAngularVelocity = new Vector2(Mathf.Clamp(angularVelocity.x, -maxX, maxX), Mathf.Clamp(angularVelocity.y, -maxY, maxY));
+        var largestClamp = Mathf.Max(maxX, maxY);
+        clampedAngularVelocity = Vector2.ClampMagnitude(clampedAngularVelocity / largestClamp, 1f) * largestClamp;
+        var angularRotation = Quaternion.Euler(clampedAngularVelocity);
 
-        _gazeTarget = eyesCenter + (_head.rotation * _frustrumTilt * _unlockedTilt * angularVelocityQ * Vector3.forward) * _naturalLookDistance;
+        _gazeTarget = eyesCenter + (_head.rotation * _frustrumTilt * _unlockedTilt * angularRotation * Vector3.forward) * _naturalLookDistance;
     }
 
     private void DetectHighAngularVelocity()
