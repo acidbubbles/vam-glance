@@ -819,6 +819,11 @@ public class Glance : MVRScript
         if (_nextGazeTime > Time.time) return;
         _nextGazeTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
 
+        _gazeTarget = GetGazeTarget(eyesCenter);
+    }
+
+    private Vector3 GetGazeTarget(Vector3 eyesCenter)
+    {
         var localAngularVelocity = transform.InverseTransformDirection(_headRB.angularVelocity);
         var angularVelocity = Vector2.Scale(localAngularVelocity * Mathf.Rad2Deg, _angularVelocityPredictiveMultiplier);
         var maxX = _quickTurnMaxXJSON.val;
@@ -828,7 +833,7 @@ public class Glance : MVRScript
         clampedAngularVelocity = Vector2.ClampMagnitude(clampedAngularVelocity / largestClamp, 1f) * largestClamp;
         var angularRotation = Quaternion.Euler(clampedAngularVelocity);
 
-        _gazeTarget = eyesCenter + (_head.rotation * _frustrumTilt * _unlockedTilt * angularRotation * Vector3.forward) * _naturalLookDistance;
+        return eyesCenter + (_head.rotation * _frustrumTilt * _unlockedTilt * angularRotation * Vector3.forward) * _naturalLookDistance;
     }
 
     private void DetectHighAngularVelocity()
@@ -951,10 +956,8 @@ public class Glance : MVRScript
 
         if (_objects.Count == 0) return;
 
-        _nextGazeTime = 0f;
-        SelectGazeTarget(eyesCenter);
         // NOTE: Average expected direction and actual direction, since we don't know if the head will stop or not
-        var lookDirection = (((_head.rotation * _frustrumTilt * Vector3.forward) + (_gazeTarget - eyesCenter).normalized) / 2f).normalized;
+        var lookDirection = (((_head.rotation * _frustrumTilt * Vector3.forward) + (GetGazeTarget(eyesCenter) - eyesCenter).normalized) / 2f).normalized;
 
         //var planes = GeometryUtility.CalculateFrustumPlanes(SuperController.singleton.centerCameraTarget.targetCamera);
         CalculateFrustum(eyesCenter, lookDirection, _frustrumJSON.val * Mathf.Deg2Rad, _frustrumRatioJSON.val, _frustrumNearJSON.val, _frustrumFarJSON.val, _frustrumPlanes);
@@ -969,7 +972,8 @@ public class Glance : MVRScript
             var distance = Vector3.SqrMagnitude(bounds.center - eyesCenter);
             if (distance > _lookAtMirrorDistance) continue;
             if (!IsInAngleRange(eyesCenter, position)) continue;
-            var score = o.weight - (distance / 10f);
+            var distanceScore = 1f - Mathf.Clamp((distance - _frustrumNearJSON.val) / (_frustrumFarJSON.val - _frustrumNearJSON.val), 0f, 0.5f);
+            var score = o.weight * distanceScore;
             _lockTargetCandidates.Add(new EyeTargetReference(
                 o.transform,
                 score
@@ -993,6 +997,7 @@ public class Glance : MVRScript
 
         if (_lockTargetCandidates.Count != originalCount)
         {
+            _nextGazeTime = Time.time + _nextLockTargetTime;
             if (_lockTargetCandidates.Count > 0)
             {
                 _lockTarget = closest;
@@ -1001,7 +1006,9 @@ public class Glance : MVRScript
             }
             else
             {
-                _nextLockTargetTime = 0;
+                _lockTarget = null;
+                _nextGazeTime = 0f;
+                _nextLockTargetTime = float.PositiveInfinity;
                 SetLineColor(_frustrumLineRenderer, Color.gray);
             }
         }
