@@ -819,10 +819,11 @@ public class Glance : MVRScript
         if (_nextGazeTime > Time.time) return;
         _nextGazeTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
 
-        _gazeTarget = GetGazeTarget(eyesCenter);
+        var angularRotation = GetGazeRotation();
+        _gazeTarget = eyesCenter + (_head.rotation * _frustrumTilt * _unlockedTilt * angularRotation * Vector3.forward) * _naturalLookDistance;
     }
 
-    private Vector3 GetGazeTarget(Vector3 eyesCenter)
+    private Quaternion GetGazeRotation()
     {
         var localAngularVelocity = transform.InverseTransformDirection(_headRB.angularVelocity);
         var angularVelocity = Vector2.Scale(localAngularVelocity * Mathf.Rad2Deg, _angularVelocityPredictiveMultiplier);
@@ -831,9 +832,7 @@ public class Glance : MVRScript
         var clampedAngularVelocity = new Vector2(Mathf.Clamp(angularVelocity.x, -maxX, maxX), Mathf.Clamp(angularVelocity.y, -maxY, maxY));
         var largestClamp = Mathf.Max(maxX, maxY);
         clampedAngularVelocity = Vector2.ClampMagnitude(clampedAngularVelocity / largestClamp, 1f) * largestClamp;
-        var angularRotation = Quaternion.Euler(clampedAngularVelocity);
-
-        return eyesCenter + (_head.rotation * _frustrumTilt * _unlockedTilt * angularRotation * Vector3.forward) * _naturalLookDistance;
+        return Quaternion.Euler(clampedAngularVelocity);
     }
 
     private void DetectHighAngularVelocity()
@@ -957,7 +956,11 @@ public class Glance : MVRScript
         if (_objects.Count == 0) return;
 
         // NOTE: Average expected direction and actual direction, since we don't know if the head will stop or not
-        var lookDirection = (((_head.rotation * _frustrumTilt * Vector3.forward) + (GetGazeTarget(eyesCenter) - eyesCenter).normalized) / 2f).normalized;
+        var angularRotation = GetGazeRotation();
+        var frustrumBaseRotation = _head.rotation * _frustrumTilt;
+        var naturalTarget = frustrumBaseRotation * angularRotation * Vector3.forward;
+        var headTarget = frustrumBaseRotation * Vector3.forward;
+        var lookDirection = ((headTarget.normalized + naturalTarget.normalized) / 2f).normalized;
 
         //var planes = GeometryUtility.CalculateFrustumPlanes(SuperController.singleton.centerCameraTarget.targetCamera);
         CalculateFrustum(eyesCenter, lookDirection, _frustrumJSON.val * Mathf.Deg2Rad, _frustrumRatioJSON.val, _frustrumNearJSON.val, _frustrumFarJSON.val, _frustrumPlanes);
