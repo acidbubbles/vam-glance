@@ -262,6 +262,7 @@ public class Glance : MVRScript
             _quickTurnMultiplierXJSON.setCallbackFunction = val => _angularVelocityPredictiveMultiplier = new Vector3(_quickTurnMultiplierXJSON.val, _quickTurnMultiplierYJSON.val, 0);
             _quickTurnMultiplierYJSON.setCallbackFunction = val => _angularVelocityPredictiveMultiplier = new Vector3(_quickTurnMultiplierXJSON.val, _quickTurnMultiplierYJSON.val, 0);
             _unlockedTiltJSON.setCallbackFunction = val => { _unlockedTilt = Quaternion.Euler(val, 0f, 0f); _nextLockTargetTime = 0f; _nextGazeTime = 0f; };
+            _unlockedDistanceJSON.setCallbackFunction = val => { _nextGazeTime = 0f; };
             _blinkSpaceMinJSON.setCallbackFunction = val => { _blinkSpaceMaxJSON.valNoCallback = Mathf.Max(val, _blinkSpaceMaxJSON.val); _eyelidBehavior.blinkSpaceMin = val; };
             _blinkSpaceMaxJSON.setCallbackFunction = val => { _blinkSpaceMinJSON.valNoCallback = Mathf.Min(val, _blinkSpaceMinJSON.val); _eyelidBehavior.blinkSpaceMax = val; };
             _blinkTimeMinJSON.setCallbackFunction = val => { _blinkTimeMaxJSON.valNoCallback = Mathf.Max(val, _blinkTimeMaxJSON.val); _eyelidBehavior.blinkTimeMin = val; };
