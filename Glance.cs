@@ -15,7 +15,6 @@ public class Glance : MVRScript
     private const float _objectScanSpan = 0.08f;
     private const float _syncCheckSpan = 2.19f;
     private const float _validateExtremesSpan = 0.04f;
-    private const float _naturalLookDistance = 0.8f;
 
     private static readonly HashSet<string> _mirrorAtomTypes = new HashSet<string>(new[]
     {
@@ -57,6 +56,7 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _quickTurnMultiplierXJSON = new JSONStorableFloat("QuickTurnMultiplierX", 0.5f, 0f, 1f, false);
     private readonly JSONStorableFloat _quickTurnMultiplierYJSON = new JSONStorableFloat("QuickTurnMultiplierY", 0.3f, 0f, 1f, false);
     private readonly JSONStorableFloat _unlockedTiltJSON = new JSONStorableFloat("UnlockedTilt", 10f, -30f, 30f, false);
+    private readonly JSONStorableFloat _unlockedDistanceJSON = new JSONStorableFloat("UnlockedDistance", 0.8f, 0f, 2f, false);
     private readonly JSONStorableFloat _blinkSpaceMinJSON = new JSONStorableFloat("BlinkSpaceMin", 1f, 0f, 10f, false);
     private readonly JSONStorableFloat _blinkSpaceMaxJSON = new JSONStorableFloat("BlinkSpaceMax", 7f, 0f, 10f, false);
     private readonly JSONStorableFloat _blinkTimeMinJSON = new JSONStorableFloat("BlinkTimeMin", 0.1f, 0f, 2f, false);
@@ -186,6 +186,7 @@ public class Glance : MVRScript
             CreateSlider(_quickTurnMultiplierXJSON, true).label = "Quick turn multiplier X";
             CreateSlider(_quickTurnMultiplierYJSON, true).label = "Quick turn multiplier Y";
             CreateSlider(_unlockedTiltJSON, true, "Spacey tilt", "F2");
+            CreateSlider(_unlockedDistanceJSON, true, "Spacey distance", "F3");
             CreateSlider(_blinkSpaceMinJSON, true, "Blink space min", "F2");
             CreateSlider(_blinkSpaceMaxJSON, true, "Blink space max", "F3");
             CreateSlider(_blinkTimeMinJSON, true, "Blink time min", "F4");
@@ -226,6 +227,7 @@ public class Glance : MVRScript
             RegisterFloat(_quickTurnMultiplierXJSON);
             RegisterFloat(_quickTurnMultiplierYJSON);
             RegisterFloat(_unlockedTiltJSON);
+            RegisterFloat(_unlockedDistanceJSON);
             RegisterFloat(_blinkSpaceMinJSON);
             RegisterFloat(_blinkSpaceMaxJSON);
             RegisterFloat(_blinkTimeMinJSON);
@@ -376,6 +378,7 @@ public class Glance : MVRScript
         _quickTurnThresholdJSON.SetValToDefault();
         _quickTurnCooldownJSON.SetValToDefault();
         _unlockedTiltJSON.SetValToDefault();
+        _unlockedDistanceJSON.SetValToDefault();
         _cameraMouthDistanceJSON.SetValToDefault();
         _cameraEyesDistanceJSON.SetValToDefault();
         _blinkSpaceMinJSON.SetValToDefault();
@@ -820,7 +823,7 @@ public class Glance : MVRScript
         _nextGazeTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
 
         var angularRotation = GetGazeRotation();
-        _gazeTarget = eyesCenter + (_head.rotation * _frustrumTilt * _unlockedTilt * angularRotation * Vector3.forward) * _naturalLookDistance;
+        _gazeTarget = eyesCenter + (_head.rotation * _frustrumTilt * _unlockedTilt * angularRotation * Vector3.forward) * _unlockedDistanceJSON.val;
     }
 
     private Quaternion GetGazeRotation()

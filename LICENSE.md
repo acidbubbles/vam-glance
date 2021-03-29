@@ -17,7 +17,7 @@ your freedom to share and change the works. By contrast, the GNU General Public
 License is intended to guarantee your freedom to share and change all versions of a
 program--to make sure it remains free software for all its users. We, the Free
 Software Foundation, use the GNU General Public License for most of our software; it
-applies also to any other work released this way by its Acidbubbless. You can apply it to
+applies also to any other work released this way by its Authors. You can apply it to
 your programs, too.
 
 When we speak of free software, we are referring to freedom, not price. Our General
@@ -40,10 +40,10 @@ Developers that use the GNU GPL protect your rights with two steps: **(1)** asse
 copyright on the software, and **(2)** offer you this License giving you legal permission
 to copy, distribute and/or modify it.
 
-For the developers' and Acidbubbless' protection, the GPL clearly explains that there is
-no warranty for this free software. For both users' and Acidbubbless' sake, the GPL
+For the developers' and Authors' protection, the GPL clearly explains that there is
+no warranty for this free software. For both users' and Authors' sake, the GPL
 requires that modified versions be marked as changed, so that their problems will not
-be attributed erroneously to Acidbubbless of previous versions.
+be attributed erroneously to Authors of previous versions.
 
 Some devices are designed to deny users access to install or run modified versions of
 the software inside them, although the manufacturer can do so. This is fundamentally
@@ -269,7 +269,7 @@ substantial commercial, industrial or non-consumer uses, unless such uses repres
 the only significant mode of use of the product.
 
 “Installation Information” for a User Product means any methods,
-procedures, Acidbubblesization keys, or other information required to install and execute
+procedures, Authorization keys, or other information required to install and execute
 modified versions of a covered work in that User Product from a modified version of
 its Corresponding Source. The information must suffice to ensure that the continued
 functioning of the modified object code is in no case prevented or interfered with
@@ -313,25 +313,25 @@ modify the work.) You may place additional permissions on material, added by you
 covered work, for which you have or can give appropriate copyright permission.
 
 Notwithstanding any other provision of this License, for material you add to a
-covered work, you may (if Acidbubblesized by the copyright holders of that material)
+covered work, you may (if Authorized by the copyright holders of that material)
 supplement the terms of this License with terms:
 
 * **a)** Disclaiming warranty or limiting liability differently from the terms of
 sections 15 and 16 of this License; or
-* **b)** Requiring preservation of specified reasonable legal notices or Acidbubbles
+* **b)** Requiring preservation of specified reasonable legal notices or Author
 attributions in that material or in the Appropriate Legal Notices displayed by works
 containing it; or
 * **c)** Prohibiting misrepresentation of the origin of that material, or requiring that
 modified versions of such material be marked in reasonable ways as different from the
 original version; or
-* **d)** Limiting the use for publicity purposes of names of licensors or Acidbubbless of the
+* **d)** Limiting the use for publicity purposes of names of licensors or Authors of the
 material; or
 * **e)** Declining to grant rights under trademark law for use of some trade names,
 trademarks, or service marks; or
-* **f)** Requiring indemnification of licensors and Acidbubbless of that material by anyone
+* **f)** Requiring indemnification of licensors and Authors of that material by anyone
 who conveys the material (or modified versions of it) with contractual assumptions of
 liability to the recipient, for any liability that these contractual assumptions
-directly impose on those licensors and Acidbubbless.
+directly impose on those licensors and Authors.
 
 All other non-permissive additional terms are considered “further
 restrictions” within the meaning of section 10. If the Program as you received
@@ -409,7 +409,7 @@ importing the Program or any portion of it.
 
 ### 11. Patents
 
-A “contributor” is a copyright holder who Acidbubblesizes use under this
+A “contributor” is a copyright holder who Authorizes use under this
 License of the Program or a work on which the Program is based. The work thus
 licensed is called the contributor's “contributor version”.
 
@@ -446,7 +446,7 @@ identifiable patents in that country that you have reason to believe are valid.
 
 If, pursuant to or in connection with a single transaction or arrangement, you
 convey, or propagate by procuring conveyance of, a covered work, and grant a patent
-license to some of the parties receiving the covered work Acidbubblesizing them to use,
+license to some of the parties receiving the covered work Authorizing them to use,
 propagate, modify or convey a specific copy of the covered work, then the patent
 license you grant is automatically extended to all recipients of the covered work and
 works based on it.
@@ -504,10 +504,10 @@ Software Foundation.
 
 If the Program specifies that a proxy can decide which future versions of the GNU
 General Public License can be used, that proxy's public statement of acceptance of a
-version permanently Acidbubblesizes you to choose that version for the Program.
+version permanently Authorizes you to choose that version for the Program.
 
 Later license versions may give you additional or different permissions. However, no
-additional obligations are imposed on any Acidbubbles or copyright holder as a result of
+additional obligations are imposed on any Author or copyright holder as a result of
 your choosing to follow a later version.
 
 ### 15. Disclaimer of Warranty
@@ -553,7 +553,7 @@ and each file should have at least the “copyright” line and a pointer to
 where the full notice is found.
 
     <one line to give the program's name and a brief idea of what it does.>
-    Copyright (C) <year>  <name of Acidbubbles>
+    Copyright (C) <year>  <name of Author>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -573,7 +573,7 @@ Also add information on how to contact you by electronic and paper mail.
 If the program does terminal interaction, make it output a short notice like this
 when it starts in an interactive mode:
 
-    <program>  Copyright (C) <year>  <name of Acidbubbles>
+    <program>  Copyright (C) <year>  <name of Author>
     This program comes with ABSOLUTELY NO WARRANTY; for details type 'show w'.
     This is free software, and you are welcome to redistribute it
     under certain conditions; type 'show c' for details.
