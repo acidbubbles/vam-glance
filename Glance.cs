@@ -149,7 +149,7 @@ public class Glance : MVRScript
                 "Focused",
                 "Anime",
             }, "", "Apply preset") { isStorable = false };
-            var focusOnPlayerJSON = new JSONStorableAction("FocusOnPlayer", FocusOnPlayerCallback);
+            var focusOnPlayerJSON = new JSONStorableAction("FocusOnPlayer", FocusOnPlayer);
 
             CreateToggle(_mirrorsJSON).label = "Mirrors (look at themselves)";
             CreateSlider(_playerEyesWeightJSON, false, "Eyes (you)", "F4");
@@ -461,6 +461,7 @@ public class Glance : MVRScript
         _ready = true;
         if (enabled)
             OnEnable();
+        SuperController.singleton.BroadcastMessage("OnActionsProviderAvailable", this, SendMessageOptions.DontRequireReceiver);
     }
 
     public void OnEnable()
@@ -1044,7 +1045,7 @@ public class Glance : MVRScript
         }
     }
 
-    private void FocusOnPlayerCallback()
+    private void FocusOnPlayer()
     {
         _nextObjectsScanTime = Time.time + _lockMaxDurationJSON.val;
         _nextSaccadeTime = Time.time + _saccadeMaxDurationJSON.val;
@@ -1161,6 +1162,21 @@ public class Glance : MVRScript
     {
         base.RestoreFromJSON(jc, restorePhysical, restoreAppearance, presetAtoms, setMissingToDefault);
             _restored = true;
+    }
+
+    public void OnBindingsListRequested(List<object> bindings)
+    {
+        bindings.Add(new[]
+        {
+                new KeyValuePair<string, string>("Namespace", "Glance")
+            });
+        bindings.Add(new JSONStorableAction("Toggle_FrustrumDebug", () => _debugJSON.val = !_debugJSON.val));
+        bindings.Add(new JSONStorableAction("FocusOnPlayer", () => FocusOnPlayer()));
+    }
+
+    public void OnDestroy()
+    {
+        SuperController.singleton.BroadcastMessage("OnActionsProviderDestroyed", this, SendMessageOptions.DontRequireReceiver);
     }
 
     private struct EyeTargetReference
