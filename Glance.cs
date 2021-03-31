@@ -27,6 +27,7 @@ public class Glance : MVRScript
     private readonly JSONStorableBool _mirrorsJSON = new JSONStorableBool("Mirrors", false);
     private readonly JSONStorableFloat _playerEyesWeightJSON = new JSONStorableFloat("PlayerEyesWeight", 1f, 0f, 1f, true);
     private readonly JSONStorableFloat _playerMouthWeightJSON = new JSONStorableFloat("PlayerMouthWeight", 0.05f, 0f, 1f, true);
+    private readonly JSONStorableFloat _playerHandsWeightJSON = new JSONStorableFloat("PlayerHandsWeight", 0.1f, 0f, 1f, true);
     private readonly JSONStorableFloat _windowCameraWeightJSON = new JSONStorableFloat("WindowCameraWeight", 1f, 0f, 1f, true);
     private readonly JSONStorableFloat _selfHandsWeightJSON = new JSONStorableFloat("SelfHandsWeight", 0f, 0f, 1f, true);
     private readonly JSONStorableFloat _selfGenitalsWeightJSON = new JSONStorableFloat("SelfGenitalsWeight", 1f, 0f, 1f, true);
@@ -153,6 +154,7 @@ public class Glance : MVRScript
             CreateToggle(_mirrorsJSON).label = "Mirrors (look at themselves)";
             CreateSlider(_playerEyesWeightJSON, false, "Eyes (you)", "F4");
             CreateSlider(_playerMouthWeightJSON, false, "Mouth (you)", "F4");
+            CreateSlider(_playerHandsWeightJSON, false, "Hands (you)", "F4");
             CreateSlider(_windowCameraWeightJSON, false, "Window camera", "F4");
             CreateSlider(_selfHandsWeightJSON, false, "Hands (self)", "F4");
             CreateSlider(_selfGenitalsWeightJSON, false, "Genitals (self)", "F4");
@@ -198,6 +200,7 @@ public class Glance : MVRScript
             RegisterBool(_mirrorsJSON);
             RegisterFloat(_playerEyesWeightJSON);
             RegisterFloat(_playerMouthWeightJSON);
+            RegisterFloat(_playerHandsWeightJSON);
             RegisterFloat(_windowCameraWeightJSON);
             RegisterFloat(_selfHandsWeightJSON);
             RegisterFloat(_selfGenitalsWeightJSON);
@@ -239,6 +242,7 @@ public class Glance : MVRScript
             _mirrorsJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _playerEyesWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _playerMouthWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
+            _playerHandsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _windowCameraWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _selfHandsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
             _selfGenitalsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
@@ -354,6 +358,7 @@ public class Glance : MVRScript
         _mirrorsJSON.SetValToDefault();
         _playerEyesWeightJSON.SetValToDefault();
         _playerMouthWeightJSON.SetValToDefault();
+        _playerHandsWeightJSON.SetValToDefault();
         _windowCameraWeightJSON.SetValToDefault();
         _selfHandsWeightJSON.SetValToDefault();
         _selfGenitalsWeightJSON.SetValToDefault();
@@ -561,7 +566,15 @@ public class Glance : MVRScript
         }
 
         if (_playerMouthWeightJSON.val >= 0.01f)
+        {
             _objects.Add(new EyeTargetReference(_cameraMouth, _playerMouthWeightJSON.val));
+        }
+
+        if (_playerHandsWeightJSON.val >= 0.01f)
+        {
+            _objects.Add(new EyeTargetReference(SuperController.singleton.leftHand, _playerHandsWeightJSON.val / 2f));
+            _objects.Add(new EyeTargetReference(SuperController.singleton.rightHand, _playerHandsWeightJSON.val / 2f));
+        }
 
         foreach (var atom in SuperController.singleton.GetAtoms())
         {
