@@ -984,9 +984,19 @@ public class Glance : MVRScript
 
         Transform closest = null;
         var closestDistance = float.PositiveInfinity;
-        foreach (var o in _objects)
+        for (int i = 0; i < _objects.Count; i++)
         {
-            var position = o.transform.position;
+            var o = _objects[i];
+            Vector3 position;
+            try
+            {
+                position = o.transform.position;
+            }
+            catch (NullReferenceException)
+            {
+                _nextObjectsScanTime = 0f;
+                return;
+            }
             var bounds = new Bounds(position, new Vector3(0.001f, 0.001f, 0.001f));
             if (!GeometryUtility.TestPlanesAABB(_frustrumPlanes, bounds)) continue;
             var distance = Vector3.SqrMagnitude(bounds.center - eyesCenter);
