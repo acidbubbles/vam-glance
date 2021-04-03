@@ -993,7 +993,7 @@ public class Glance : MVRScript
         var frustrumBaseRotation = _head.rotation * _frustrumTilt;
         var naturalTarget = frustrumBaseRotation * angularRotation * Vector3.forward;
         var headTarget = frustrumBaseRotation * Vector3.forward;
-        var lookDirection = ((headTarget.normalized + naturalTarget.normalized) / 2f).normalized;
+        var lookDirection = (headTarget.normalized + naturalTarget.normalized).normalized;
 
         //var planes = GeometryUtility.CalculateFrustumPlanes(SuperController.singleton.centerCameraTarget.targetCamera);
         CalculateFrustum(eyesCenter, lookDirection, _head.up, _frustrumJSON.val * Mathf.Deg2Rad, _frustrumRatioJSON.val, _frustrumNearJSON.val, _frustrumFarJSON.val, _frustrumPlanes);
