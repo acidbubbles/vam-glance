@@ -69,6 +69,7 @@ public class Glance : MVRScript
 
     private bool _ready;
     private bool _restored;
+	private bool _needRescan = false;
     private DAZBone[] _bones;
     private EyesControl _eyeBehavior;
     private DAZMeshEyelidControl _eyelidBehavior;
@@ -239,22 +240,22 @@ public class Glance : MVRScript
             RegisterFloat(_cameraEyesDistanceJSON);
             RegisterAction(focusOnPlayerJSON);
 
-            _mirrorsJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _playerEyesWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _playerMouthWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _playerHandsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _windowCameraWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _selfHandsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _selfGenitalsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _personsEyesWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _personsMouthWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _personsChestWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _personsNipplesWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _personsHandsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _personsGenitalsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _personsFeetWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _objectsWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
-            _nothingWeightJSON.setCallbackFunction = _ => { if (enabled) Rescan(); };
+            _mirrorsJSON.setCallbackFunction = ValueChangedScheduleRescan;
+            _playerEyesWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
+            _playerMouthWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
+            _playerHandsWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
+            _windowCameraWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
+            _selfHandsWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
+            _selfGenitalsWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
+            _personsEyesWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
+            _personsMouthWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
+            _personsChestWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
+            _personsNipplesWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
+            _personsHandsWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
+            _personsGenitalsWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
+            _personsFeetWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
+            _objectsWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
+            _nothingWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
             presetsJSON.setCallbackFunction = val => { ApplyPreset(val, presetsJSON); };
             _frustrumTiltJSON.setCallbackFunction = val => _frustrumTilt = Quaternion.Euler(val, 0f, 0f);
             _frustrumNearJSON.setCallbackFunction = val => _frustrumFarJSON.valNoCallback = Mathf.Max(val, _frustrumFarJSON.val);
@@ -283,6 +284,16 @@ public class Glance : MVRScript
             enabled = false;
         }
     }
+
+	private void ValueChangedScheduleRescan(float v)
+	{
+		_needRescan = true;
+	}
+
+	private void ValueChangedScheduleRescan(bool v)
+	{
+		_needRescan = true;
+	}
 
     private void ApplyPreset(string val, JSONStorableStringChooser presetsJSON)
     {
@@ -676,6 +687,7 @@ public class Glance : MVRScript
 
     public void Rescan()
     {
+		_needRescan = false;
         ClearState();
         SyncMirrors();
         SyncObjects();
@@ -703,6 +715,9 @@ public class Glance : MVRScript
 
     public void Update()
     {
+		if (_needRescan)
+			Rescan();
+
         var eyesCenter = (_lEye.position + _rEye.position) / 2f;
 
         CheckSyncNeeded();
