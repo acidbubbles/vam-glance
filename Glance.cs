@@ -678,7 +678,7 @@ public class Glance : MVRScript
                 case "Empty":
                 {
                     if (!atom.storeId.StartsWith("GlanceTarget_")) continue;
-                        _objects.Add(new EyeTargetReference(atom.mainController.control));
+                    _objects.Add(new EyeTargetReference(atom.mainController.control));
                     break;
                 }
             }
@@ -982,7 +982,6 @@ public class Glance : MVRScript
         if (_nextObjectsScanTime > Time.time) return;
         _nextObjectsScanTime = Time.time + _objectScanSpan;
 
-        var originalCount = _lockTargetCandidates.Count;
         _lockTargetCandidates.Clear();
         _lockTargetCandidatesScoreSum = 0f;
 
@@ -1041,23 +1040,23 @@ public class Glance : MVRScript
             _lockTargetCandidatesScoreSum += _nothingWeightJSON.val;
         }
 
-        if (_lockTargetCandidates.Count != originalCount)
-        {
-            _nextGazeTime = Time.time + _nextLockTargetTime;
-            if (_lockTargetCandidates.Count > 0)
-            {
-                _lockTarget = closest;
-                _nextLockTargetTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
-                SetLineColor(_frustrumLineRenderer, Color.cyan);
-            }
-            else
-            {
-                _lockTarget = null;
-                _nextGazeTime = 0f;
-                _nextLockTargetTime = float.PositiveInfinity;
-                SetLineColor(_frustrumLineRenderer, Color.gray);
-            }
-        }
+		if (_lockTargetCandidates.FindIndex(c => c.transform == _lockTarget) < 0)
+		{
+			_nextGazeTime = Time.time + _nextLockTargetTime;
+			if (_lockTargetCandidates.Count > 0)
+			{
+				_lockTarget = closest;
+				_nextLockTargetTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
+				SetLineColor(_frustrumLineRenderer, Color.cyan);
+			}
+			else
+			{
+				_lockTarget = null;
+				_nextGazeTime = 0f;
+				_nextLockTargetTime = float.PositiveInfinity;
+				SetLineColor(_frustrumLineRenderer, Color.gray);
+			}
+		}
     }
 
     private void FocusOnPlayer()
