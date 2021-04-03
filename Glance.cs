@@ -996,7 +996,7 @@ public class Glance : MVRScript
         var lookDirection = ((headTarget.normalized + naturalTarget.normalized) / 2f).normalized;
 
         //var planes = GeometryUtility.CalculateFrustumPlanes(SuperController.singleton.centerCameraTarget.targetCamera);
-        CalculateFrustum(eyesCenter, lookDirection, _frustrumJSON.val * Mathf.Deg2Rad, _frustrumRatioJSON.val, _frustrumNearJSON.val, _frustrumFarJSON.val, _frustrumPlanes);
+        CalculateFrustum(eyesCenter, lookDirection, _head.up, _frustrumJSON.val * Mathf.Deg2Rad, _frustrumRatioJSON.val, _frustrumNearJSON.val, _frustrumFarJSON.val, _frustrumPlanes);
 
         Transform closest = null;
         var closestDistance = float.PositiveInfinity;
@@ -1119,11 +1119,11 @@ public class Glance : MVRScript
     }
 
     // Source: http://answers.unity.com/answers/1024526/view.html
-    private void CalculateFrustum(Vector3 origin, Vector3 direction, float fovRadians, float viewRatio, float near, float far, Plane[] frustrumPlanes)
+    private void CalculateFrustum(Vector3 origin, Vector3 direction, Vector3 up, float fovRadians, float viewRatio, float near, float far, Plane[] frustrumPlanes)
     {
         var nearCenter = origin + direction * near;
         var farCenter = origin + direction * far;
-        var camRight = Vector3.Cross(direction, Vector3.up) * -1;
+        var camRight = Vector3.Cross(up, direction).normalized;
         var camUp = Vector3.Cross(direction, camRight);
         var nearHeight = 2 * Mathf.Tan(fovRadians / 2) * near;
         var farHeight = 2 * Mathf.Tan(fovRadians / 2) * far;
