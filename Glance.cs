@@ -830,9 +830,9 @@ public class Glance : MVRScript
     {
         var lookAngle = _head.InverseTransformDirection(targetPosition - eyesCenter);
         var yaw = Vector3.Angle(Vector3.ProjectOnPlane(lookAngle, Vector3.up), Vector3.forward);
-        if (yaw > 26) return false;
+        if (yaw > _frustrumJSON.val*0.5f) return false;
         var pitch = Vector3.Angle(Vector3.ProjectOnPlane(lookAngle, Vector3.right), Vector3.forward);
-        if (pitch > 30) return false;
+        if (pitch > _frustrumJSON.val*_frustrumRatioJSON.val*0.5f) return false;
         return true;
     }
 
