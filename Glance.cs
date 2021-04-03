@@ -569,7 +569,7 @@ public class Glance : MVRScript
         _nextObjectsScanTime = 0f;
         _nextLockTargetTime = 0f;
         _nextMirrorScanTime = 0f;
-        _nextSyncCheckTime = _syncCheckSpan;
+        _nextSyncCheckTime = Time.time + _syncCheckSpan;
 
         if (_playerEyesWeightJSON.val >= 0.01f)
         {
