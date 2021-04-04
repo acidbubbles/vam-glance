@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using SimpleJSON;
 using UnityEngine;
+using UnityEngine.UI;
 using Random = UnityEngine.Random;
 
 public class Glance : MVRScript
@@ -150,9 +151,9 @@ public class Glance : MVRScript
                 "Focused",
                 "Anime",
             }, "", "Apply preset") { isStorable = false };
-            var focusOnPlayerJSON = new JSONStorableAction("FocusOnPlayer", FocusOnPlayer);
 
-            CreateToggle(_mirrorsJSON).label = "Mirrors (look at themselves)";
+            CreateTitle("Auto targeting priorities", false);
+            CreateToggle(_mirrorsJSON, false).label = "Mirrors (look at themselves)";
             CreateSlider(_playerEyesWeightJSON, false, "Eyes (you)", "F4");
             CreateSlider(_playerMouthWeightJSON, false, "Mouth (you)", "F4");
             CreateSlider(_playerHandsWeightJSON, false, "Hands (you)", "F4");
@@ -167,34 +168,53 @@ public class Glance : MVRScript
             CreateSlider(_personsGenitalsWeightJSON , false, "Genitals (others)", "F4");
             CreateSlider(_personsFeetWeightJSON , false, "Feet (others)", "F4");
             CreateSlider(_nothingWeightJSON, false, "Nothing (spacey)", "F4");
+
+            CreateTitle("Debugging", false);
             CreateToggle(_debugJSON).label = "Show debug information";
             CreateTextField(_debugDisplayJSON);
 
+            CreateTitle("Presets", true);
             CreateScrollablePopup(presetsJSON, true);
+
+            CreateTitle("Frustrum settings (angle of view)", true);
             CreateSlider(_frustrumJSON, true, "Frustrum field of view", "F3");
             CreateSlider(_frustrumRatioJSON, true, "Frustrum ratio (multiply width)", "F3");
             CreateSlider(_frustrumTiltJSON, true, "Frustrum tilt", "F3");
             CreateSlider(_frustrumNearJSON, true, "Frustrum near (closest)", "F3");
             CreateSlider(_frustrumFarJSON, true, "Frustrum far (furthest)", "F3");
+
+            CreateTitle("Timing", true);
             CreateSlider(_lockMinDurationJSON, true, "Min target lock time", "F3");
             CreateSlider(_lockMaxDurationJSON, true, "Max target lock time", "F3");
+
+            CreateTitle("Eye saccade", true);
             CreateSlider(_saccadeMinDurationJSON, true, "Min eye saccade time", "F4");
             CreateSlider(_saccadeMaxDurationJSON, true, "Max eye saccade time", "F4");
             CreateSlider(_saccadeRangeJSON, true, "Range of eye saccade", "F4");
+
+            CreateTitle("Quick turning", true);
             CreateSlider(_quickTurnThresholdJSON, true, "Quick turn threshold", "F3");
             CreateSlider(_quickTurnCooldownJSON, true, "Quick turn cooldown", "F3");
             CreateSlider(_quickTurnMaxXJSON, true).label = "Quick turn max X";
             CreateSlider(_quickTurnMaxYJSON, true).label = "Quick turn max Y";
             CreateSlider(_quickTurnMultiplierXJSON, true).label = "Quick turn multiplier X";
             CreateSlider(_quickTurnMultiplierYJSON, true).label = "Quick turn multiplier Y";
+
+            CreateTitle("Spacey (no targets)", true);
             CreateSlider(_unlockedTiltJSON, true, "Spacey tilt", "F2");
             CreateSlider(_unlockedDistanceJSON, true, "Spacey distance", "F3");
+
+            CreateTitle("Blinking", true);
             CreateSlider(_blinkSpaceMinJSON, true, "Blink space min", "F2");
             CreateSlider(_blinkSpaceMaxJSON, true, "Blink space max", "F3");
             CreateSlider(_blinkTimeMinJSON, true, "Blink time min", "F4");
             CreateSlider(_blinkTimeMaxJSON, true, "Blink time max", "F4");
+
+            CreateTitle("Player eyes and mouth", true);
             CreateSlider(_cameraMouthDistanceJSON, true, "Camera mouth distance", "F4");
             CreateSlider(_cameraEyesDistanceJSON, true, "Camera eyes distance", "F4");
+
+            CreateTitle("Other settings", true);
             CreateToggle(_preventUnnaturalEyeAngle, true).label = "Prevent unnatural eye angle";
 
             RegisterStringChooser(presetsJSON);
@@ -238,7 +258,7 @@ public class Glance : MVRScript
             RegisterFloat(_cameraMouthDistanceJSON);
             RegisterFloat(_cameraEyesDistanceJSON);
             RegisterBool(_preventUnnaturalEyeAngle);
-            RegisterAction(focusOnPlayerJSON);
+            RegisterAction(new JSONStorableAction("FocusOnPlayer", FocusOnPlayer));
 
             _mirrorsJSON.setCallbackFunction = ValueChangedScheduleRescan;
             _playerEyesWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
@@ -284,6 +304,19 @@ public class Glance : MVRScript
             SuperController.LogError($"{nameof(Glance)}.{nameof(Init)}: {e}");
             enabled = false;
         }
+    }
+
+    private void CreateTitle(string text, bool rightSide = false)
+    {
+        var spacer = CreateSpacer(rightSide);
+        spacer.height = 40f;
+
+        var textComponent = spacer.gameObject.AddComponent<Text>();
+        textComponent.text = text;
+        textComponent.font = manager.configurableTextFieldPrefab.GetComponentInChildren<Text>().font;
+        textComponent.fontSize = 30;
+        textComponent.fontStyle = FontStyle.Bold;
+        textComponent.color = new Color(0.95f, 0.9f, 0.92f);
     }
 
 	private void ValueChangedScheduleRescan(float v)
