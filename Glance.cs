@@ -38,7 +38,6 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _personsHandsWeightJSON = new JSONStorableFloat("PersonsHandsWeight", 0.05f, 0f, 1f, true);
     private readonly JSONStorableFloat _personsGenitalsWeightJSON = new JSONStorableFloat("PersonsGenitalsWeight", 0.5f, 0f, 1f, true);
     private readonly JSONStorableFloat _personsFeetWeightJSON = new JSONStorableFloat("PersonsFeetWeight", 0f, 0f, 1f, true);
-    private readonly JSONStorableFloat _objectsWeightJSON = new JSONStorableFloat("ObjectsWeight", 0f, 0f, 1f, true);
     private readonly JSONStorableFloat _nothingWeightJSON = new JSONStorableFloat("NothingWeight", 0f, 0f, 1f, true);
     private readonly JSONStorableFloat _frustrumJSON = new JSONStorableFloat("FrustrumFOV", 35f, 0f, 45f, false);
     private readonly JSONStorableFloat _frustrumRatioJSON = new JSONStorableFloat("FrustrumRatio", 1.4f, 0.5f, 2f, false);
@@ -69,7 +68,7 @@ public class Glance : MVRScript
 
     private bool _ready;
     private bool _restored;
-	private bool _needRescan = false;
+	private bool _needRescan;
     private DAZBone[] _bones;
     private EyesControl _eyeBehavior;
     private DAZMeshEyelidControl _eyelidBehavior;
@@ -166,7 +165,6 @@ public class Glance : MVRScript
             CreateSlider(_personsHandsWeightJSON , false, "Hands (others)", "F4");
             CreateSlider(_personsGenitalsWeightJSON , false, "Genitals (others)", "F4");
             CreateSlider(_personsFeetWeightJSON , false, "Feet (others)", "F4");
-            CreateSlider(_objectsWeightJSON, false, "Objects (toys, cua, shapes)", "F4");
             CreateSlider(_nothingWeightJSON, false, "Nothing (spacey)", "F4");
             CreateToggle(_debugJSON).label = "Show debug information";
             CreateTextField(_debugDisplayJSON);
@@ -212,7 +210,6 @@ public class Glance : MVRScript
             RegisterFloat(_personsHandsWeightJSON );
             RegisterFloat(_personsGenitalsWeightJSON );
             RegisterFloat(_personsFeetWeightJSON );
-            RegisterFloat(_objectsWeightJSON);
             RegisterFloat(_nothingWeightJSON);
             RegisterFloat(_frustrumJSON);
             RegisterFloat(_frustrumRatioJSON);
@@ -254,7 +251,6 @@ public class Glance : MVRScript
             _personsHandsWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
             _personsGenitalsWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
             _personsFeetWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
-            _objectsWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
             _nothingWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
             presetsJSON.setCallbackFunction = val => { ApplyPreset(val, presetsJSON); };
             _frustrumTiltJSON.setCallbackFunction = val => _frustrumTilt = Quaternion.Euler(val, 0f, 0f);
@@ -380,7 +376,6 @@ public class Glance : MVRScript
         _personsHandsWeightJSON .SetValToDefault();
         _personsGenitalsWeightJSON .SetValToDefault();
         _personsFeetWeightJSON .SetValToDefault();
-        _objectsWeightJSON.SetValToDefault();
         _nothingWeightJSON.SetValToDefault();
         _frustrumJSON.SetValToDefault();
         _frustrumRatioJSON.SetValToDefault();
@@ -507,7 +502,7 @@ public class Glance : MVRScript
 
             SuperController.singleton.onAtomUIDsChangedHandlers += ONAtomUIDsChanged;
 
-            Rescan();
+            GlanceRescan();
         }
         catch (Exception e)
         {
@@ -662,30 +657,38 @@ public class Glance : MVRScript
 
                     break;
                 }
-                case "Cube":
-                case "Sphere":
-                case "Dildo":
-                case "Paddle":
-                case "ToyAH":
-                case "ToyBP":
-                case "CustomUnityAsset":
-                case "Torch":
+                default:
                 {
-                    if (_objectsWeightJSON.val < 0.01f) continue;
-                    _objects.Add(new EyeTargetReference(atom.mainController.control, _objectsWeightJSON.val));
-                    break;
-                }
-                case "Empty":
-                {
-                    if (!atom.storeId.StartsWith("GlanceTarget_")) continue;
-                    _objects.Add(new EyeTargetReference(atom.mainController.control));
+                    if(atom.GetBoolParamValue("GlanceTarget"))
+                    {
+                        var storables = atom.GetStorableIDs();
+                        for (var i = 0; i < storables.Count; i++)
+                        {
+                            var storableId = storables[i];
+                            if (!storableId.EndsWith("GlanceTarget")) continue;
+                            var storable = atom.GetStorableByID(storableId);
+                            var weight = storable.GetFloatParamValue("Weight");
+                            if (weight > 0.01f)
+                            {
+                                _objects.Add(new EyeTargetReference(atom.mainController.control));
+                            }
+                            break;
+                        }
+                        continue;
+                    }
+
+                    if (atom.storeId.StartsWith("GlanceTarget_"))
+                    {
+                        _objects.Add(new EyeTargetReference(atom.mainController.control));
+                    }
+
                     break;
                 }
             }
         }
     }
 
-    public void Rescan()
+    public void GlanceRescan()
     {
 		_needRescan = false;
         ClearState();
@@ -716,7 +719,7 @@ public class Glance : MVRScript
     public void Update()
     {
 		if (_needRescan)
-			Rescan();
+			GlanceRescan();
 
         var eyesCenter = (_lEye.position + _rEye.position) / 2f;
 
@@ -1169,7 +1172,7 @@ public class Glance : MVRScript
 
     private void ONAtomUIDsChanged(List<string> uids)
     {
-        Rescan();
+        GlanceRescan();
     }
 
     public override void RestoreFromJSON(JSONClass jc, bool restorePhysical = true, bool restoreAppearance = true, JSONArray presetAtoms = null, bool setMissingToDefault = true)
