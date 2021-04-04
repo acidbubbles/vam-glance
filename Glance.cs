@@ -664,7 +664,7 @@ public class Glance : MVRScript
                 }
                 default:
                 {
-                    if(atom.GetBoolParamValue("GlanceTarget"))
+                    if (atom.IsBoolJSONParam("GlanceTarget"))
                     {
                         var storables = atom.GetStorableIDs();
                         for (var i = 0; i < storables.Count; i++)
@@ -675,14 +675,14 @@ public class Glance : MVRScript
                             var weight = storable.GetFloatParamValue("Weight");
                             if (weight > 0.01f)
                             {
-                                _objects.Add(new EyeTargetReference(atom.mainController.control));
+                                _objects.Add(new EyeTargetReference(atom.mainController.control, weight));
                             }
                             break;
                         }
                         continue;
                     }
 
-                    if (atom.storeId.StartsWith("GlanceTarget_"))
+                    if (atom.uid.StartsWith("GlanceTarget_"))
                     {
                         _objects.Add(new EyeTargetReference(atom.mainController.control));
                     }
