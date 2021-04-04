@@ -256,6 +256,7 @@ public class Glance : MVRScript
             _personsFeetWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
             _nothingWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
             presetsJSON.setCallbackFunction = val => { ApplyPreset(val, presetsJSON); };
+            _frustrumJSON.setCallbackFunction = val => _frustrumJSON.valNoCallback = Mathf.Clamp(val, 0.001f, 179.999f);
             _frustrumTiltJSON.setCallbackFunction = val => _frustrumTilt = Quaternion.Euler(val, 0f, 0f);
             _frustrumNearJSON.setCallbackFunction = val => _frustrumFarJSON.valNoCallback = Mathf.Max(val, _frustrumFarJSON.val);
             _frustrumFarJSON.setCallbackFunction = val => _frustrumNearJSON.valNoCallback = Mathf.Min(val, _frustrumNearJSON.val);
