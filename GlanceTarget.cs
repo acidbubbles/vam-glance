@@ -14,6 +14,8 @@ public class GlanceTarget : MVRScript
         RegisterFloat(_weightJSON);
         OnEnable();
         _weightJSON.setCallbackFunction = _ => TriggerRescan();
+
+        // TODO: Allow specifying where the target is, e.g. on CUA
     }
 
     private void OnEnable()
