@@ -63,6 +63,7 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _blinkTimeMaxJSON = new JSONStorableFloat("BlinkTimeMax", 0.4f, 0f, 2f, false);
     private readonly JSONStorableFloat _cameraMouthDistanceJSON = new JSONStorableFloat("CameraMouthDistance", 0.053f, 0f, 0.1f, false);
     private readonly JSONStorableFloat _cameraEyesDistanceJSON = new JSONStorableFloat("CameraEyesDistance", 0.015f, 0f, 0.1f, false);
+    private readonly JSONStorableBool _preventUnnaturalEyeAngle = new JSONStorableBool("PreventUnnaturalEyeAngle", true);
     private readonly JSONStorableBool _debugJSON = new JSONStorableBool("Debug", false);
     private readonly JSONStorableString _debugDisplayJSON = new JSONStorableString("DebugDisplay", "");
 
@@ -194,6 +195,7 @@ public class Glance : MVRScript
             CreateSlider(_blinkTimeMaxJSON, true, "Blink time max", "F4");
             CreateSlider(_cameraMouthDistanceJSON, true, "Camera mouth distance", "F4");
             CreateSlider(_cameraEyesDistanceJSON, true, "Camera eyes distance", "F4");
+            CreateToggle(_preventUnnaturalEyeAngle, true).label = "Prevent unnatural eye angle";
 
             RegisterStringChooser(presetsJSON);
             RegisterBool(_mirrorsJSON);
@@ -235,6 +237,7 @@ public class Glance : MVRScript
             RegisterFloat(_blinkTimeMaxJSON);
             RegisterFloat(_cameraMouthDistanceJSON);
             RegisterFloat(_cameraEyesDistanceJSON);
+            RegisterBool(_preventUnnaturalEyeAngle);
             RegisterAction(focusOnPlayerJSON);
 
             _mirrorsJSON.setCallbackFunction = ValueChangedScheduleRescan;
@@ -270,6 +273,7 @@ public class Glance : MVRScript
             _blinkTimeMaxJSON.setCallbackFunction = val => { _blinkTimeMinJSON.valNoCallback = Mathf.Min(val, _blinkTimeMinJSON.val); _eyelidBehavior.blinkTimeMax = val; };
             _cameraMouthDistanceJSON.setCallbackFunction = _ => { if (_cameraMouth != null) _cameraMouth.localPosition = new Vector3(0, -_cameraMouthDistanceJSON.val, 0); };
             _cameraEyesDistanceJSON.setCallbackFunction = _ => { if (_cameraMouth != null) { _cameraLEye.localPosition = new Vector3(-_cameraEyesDistanceJSON.val, 0, 0); _cameraREye.localPosition = new Vector3(_cameraEyesDistanceJSON.val, 0, 0); } };
+            _preventUnnaturalEyeAngle.setCallbackFunction = ValueChangedScheduleRescan;
             _debugJSON.setCallbackFunction = SyncDebug;
 
             SuperController.singleton.StartCoroutine(DeferredInit());
@@ -783,6 +787,7 @@ public class Glance : MVRScript
 
     private void InvalidateExtremes()
     {
+        if (!_preventUnnaturalEyeAngle.val) return;
         if (_nextValidateExtremesTime > Time.time) return;
         _nextValidateExtremesTime = Time.time + _validateExtremesSpan;
 
@@ -831,6 +836,7 @@ public class Glance : MVRScript
 
     private bool IsInAngleRange(Vector3 eyesCenter, Vector3 targetPosition)
     {
+        if (!_preventUnnaturalEyeAngle.val) return true;
         var lookAngle = _head.InverseTransformDirection(targetPosition - eyesCenter);
         var yaw = Vector3.Angle(Vector3.ProjectOnPlane(lookAngle, Vector3.up), Vector3.forward);
         if (yaw > 26) return false;
