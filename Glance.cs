@@ -25,6 +25,7 @@ public class Glance : MVRScript
         "ReflectiveWoodPanel",
     });
 
+    private readonly JSONStorableBool _disableAutoTarget = new JSONStorableBool("DisableAutoTarget", false);
     private readonly JSONStorableBool _mirrorsJSON = new JSONStorableBool("Mirrors", false);
     private readonly JSONStorableFloat _playerEyesWeightJSON = new JSONStorableFloat("PlayerEyesWeight", 1f, 0f, 1f, true);
     private readonly JSONStorableFloat _playerMouthWeightJSON = new JSONStorableFloat("PlayerMouthWeight", 0.05f, 0f, 1f, true);
@@ -156,6 +157,7 @@ public class Glance : MVRScript
             CreateScrollablePopup(presetsJSON, true);
 
             CreateTitle("Auto targeting priorities", false);
+            CreateToggle(_disableAutoTarget, false).label = "Disable automatic targeting";
             CreateToggle(_mirrorsJSON, false).label = "Mirrors (look at themselves)";
             CreateSlider(_playerEyesWeightJSON, false, "Eyes (you)", "F4");
             CreateSlider(_playerMouthWeightJSON, false, "Mouth (you)", "F4");
@@ -218,6 +220,7 @@ public class Glance : MVRScript
             CreateToggle(_preventUnnaturalEyeAngle, true).label = "Prevent unnatural eye angle";
 
             RegisterStringChooser(presetsJSON);
+            RegisterBool(_disableAutoTarget);
             RegisterBool(_mirrorsJSON);
             RegisterFloat(_playerEyesWeightJSON);
             RegisterFloat(_playerMouthWeightJSON);
@@ -260,6 +263,7 @@ public class Glance : MVRScript
             RegisterBool(_preventUnnaturalEyeAngle);
             RegisterAction(new JSONStorableAction("FocusOnPlayer", FocusOnPlayer));
 
+            _disableAutoTarget.setCallbackFunction = ValueChangedScheduleRescan;
             _mirrorsJSON.setCallbackFunction = ValueChangedScheduleRescan;
             _playerEyesWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
             _playerMouthWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
@@ -400,6 +404,7 @@ public class Glance : MVRScript
 
     private void ResetToDefaults()
     {
+        _disableAutoTarget.SetValToDefault();
         _mirrorsJSON.SetValToDefault();
         _playerEyesWeightJSON.SetValToDefault();
         _playerMouthWeightJSON.SetValToDefault();
@@ -629,6 +634,7 @@ public class Glance : MVRScript
             {
                 case "WindowCamera":
                 {
+                    if (_disableAutoTarget.val) continue;
                     if (_windowCameraWeightJSON.val < 0.01f) continue;
                     if (atom.GetStorableByID("CameraControl")?.GetBoolParamValue("cameraOn") != true) continue;
                     _objects.Add(new EyeTargetReference(atom.mainController.control, _windowCameraWeightJSON.val));
@@ -637,14 +643,22 @@ public class Glance : MVRScript
                 }
                 case "Person":
                 {
+                    if (_disableAutoTarget.val) continue;
+
                     if (atom == containingAtom)
                     {
                         foreach (var bone in _bones)
                         {
-                            if (_selfHandsWeightJSON.val >= 0.01f && (bone.name == "lHand" || bone.name == "rHand"))
-                                _objects.Add(new EyeTargetReference(bone.transform, _selfHandsWeightJSON.val));
-                            else if (_selfGenitalsWeightJSON.val >= 0.01f && (bone.name == "Gen1" || bone.name == "Gen3"))
-                                _objects.Add(new EyeTargetReference(bone.transform, _selfGenitalsWeightJSON.val));
+                            if (bone.name == "lHand" || bone.name == "rHand")
+                            {
+                                if (_selfHandsWeightJSON.val >= 0.01f)
+                                    _objects.Add(new EyeTargetReference(bone.transform, _selfHandsWeightJSON.val));
+                            }
+                            else if (bone.name == "Gen1" || bone.name == "Gen3")
+                            {
+                                if (_selfGenitalsWeightJSON.val >= 0.01f)
+                                    _objects.Add(new EyeTargetReference(bone.transform, _selfGenitalsWeightJSON.val));
+                            }
                         }
 
                         continue;
@@ -703,8 +717,10 @@ public class Glance : MVRScript
                         for (var i = 0; i < storables.Count; i++)
                         {
                             var storableId = storables[i];
-                            if (!storableId.EndsWith("GlanceTarget")) continue;
                             var storable = atom.GetStorableByID(storableId);
+                            var glanceOn = storable.GetBoolJSONParam("GlanceOn");
+                            if (glanceOn == null) continue;
+                            if (!glanceOn.val) break;
                             var weight = storable.GetFloatParamValue("Weight");
                             if (weight > 0.01f)
                             {
@@ -1042,7 +1058,7 @@ public class Glance : MVRScript
 
         Transform closest = null;
         var closestDistance = float.PositiveInfinity;
-        for (int i = 0; i < _objects.Count; i++)
+        for (var i = 0; i < _objects.Count; i++)
         {
             var o = _objects[i];
             Vector3 position;

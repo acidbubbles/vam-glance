@@ -3,6 +3,7 @@ using UnityEngine;
 
 public class GlanceTarget : MVRScript
 {
+    private readonly JSONStorableBool _onJSON = new JSONStorableBool("GlanceOn", true);
     private readonly JSONStorableFloat _weightJSON = new JSONStorableFloat("Weight", 1f, 0f, 1f, true);
     private JSONStorableBool _glanceTargetJSON;
     private Atom _containingAtom;
@@ -10,9 +11,16 @@ public class GlanceTarget : MVRScript
     public override void Init()
     {
         _containingAtom = containingAtom;
+
+        CreateToggle(_onJSON).label = "On (will be looked at)";
+        RegisterBool(_onJSON);
+
         CreateSlider(_weightJSON).label = "Weight (look probability & duration)";
         RegisterFloat(_weightJSON);
+
         OnEnable();
+
+        _onJSON.setCallbackFunction = _ => TriggerRescan();
         _weightJSON.setCallbackFunction = _ => TriggerRescan();
 
         // TODO: Allow specifying where the target is, e.g. on CUA
