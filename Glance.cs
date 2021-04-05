@@ -462,14 +462,6 @@ public class Glance : MVRScript
             return;
         }
 
-        /*
-        foreach (var jsf in GetFloatParamNames().Select(n => GetFloatJSONParam(n)))
-        {
-            if (Math.Abs(jsf.val - jsf.defaultVal) < 0.001f) continue;
-            SuperController.LogMessage($"[DBG] {jsf.name}: {jsf.defaultVal:0.000} -> {jsf.val:0.000}");
-        }
-        */
-
         if (_frustrumLineRenderer != null) return;
 
         var lockLineGo = new GameObject("Gaze_Debug_Lock");
@@ -1003,6 +995,8 @@ public class Glance : MVRScript
     {
         _debugDisplaySb.Length = 0;
 
+        // _debugDisplaySb.AppendLine($"lock:{_nextLockTargetTime} obj:{_nextObjectsScanTime}");
+
         _debugDisplaySb.Append(_lockTargetCandidates.Count);
         _debugDisplaySb.Append(" in focus over ");
         _debugDisplaySb.Append(_objects.Count);
@@ -1031,6 +1025,13 @@ public class Glance : MVRScript
         {
             _debugDisplaySb.AppendLine("Not locked on a target.");
         }
+
+        /*
+        foreach (var o in _objects)
+        {
+            _debugDisplaySb.AppendLine($"Object: {o.transform.name} {o.weight * 100f:0.00}%");
+        }
+        */
 
         _debugDisplayJSON.val = _debugDisplaySb.ToString();
         _debugDisplaySb.Length = 0;
@@ -1116,6 +1117,9 @@ public class Glance : MVRScript
 				SetLineColor(_frustrumLineRenderer, Color.gray);
 			}
 		}
+
+        if (_debugJSON.val && UITransform.gameObject.activeInHierarchy)
+            UpdateDebugDisplay();
     }
 
     private void FocusOnPlayer()
