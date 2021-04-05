@@ -88,14 +88,14 @@ public class Glance : MVRScript
     private Vector2 _angularVelocityPredictiveMultiplier = new Vector2(0.3f, 0.5f);
     private bool _mirrorsSync;
     private readonly List<BoxCollider> _mirrors = new List<BoxCollider>();
-    private readonly List<EyeTargetReference> _objects = new List<EyeTargetReference>();
+    private readonly List<EyeTargetCandidate> _objects = new List<EyeTargetCandidate>();
     private bool _eyeTargetRestoreHidden;
     private Vector3 _eyeTargetRestorePosition;
     private EyesControl.LookMode _eyeBehaviorRestoreLookMode;
     private bool _blinkRestoreEnabled;
     private readonly Plane[] _frustrumPlanes = new Plane[6];
-    private readonly List<EyeTargetReference> _lockTargetCandidates = new List<EyeTargetReference>();
-    private float _lockTargetCandidatesScoreSum;
+    private readonly List<EyeTargetCandidate> _lockTargetCandidates = new List<EyeTargetCandidate>();
+    private float _lockTargetCandidatesProbabilitySum;
     private float _nextMirrorScanTime;
     private float _nextSyncCheckTime;
     private bool _windowCameraInObjects;
@@ -603,19 +603,19 @@ public class Glance : MVRScript
 
         if (_playerEyesWeightJSON.val >= 0.01f)
         {
-            _objects.Add(new EyeTargetReference(_cameraLEye, _playerEyesWeightJSON.val / 2f));
-            _objects.Add(new EyeTargetReference(_cameraREye, _playerEyesWeightJSON.val / 2f));
+            _objects.Add(new EyeTargetCandidate(_cameraLEye, _playerEyesWeightJSON.val, _playerEyesWeightJSON.val / 2f));
+            _objects.Add(new EyeTargetCandidate(_cameraREye, _playerEyesWeightJSON.val, _playerEyesWeightJSON.val / 2f));
         }
 
         if (_playerMouthWeightJSON.val >= 0.01f)
         {
-            _objects.Add(new EyeTargetReference(_cameraMouth, _playerMouthWeightJSON.val));
+            _objects.Add(new EyeTargetCandidate(_cameraMouth, _playerMouthWeightJSON.val));
         }
 
         if (_playerHandsWeightJSON.val >= 0.01f)
         {
-            _objects.Add(new EyeTargetReference(SuperController.singleton.leftHand, _playerHandsWeightJSON.val / 2f));
-            _objects.Add(new EyeTargetReference(SuperController.singleton.rightHand, _playerHandsWeightJSON.val / 2f));
+            _objects.Add(new EyeTargetCandidate(SuperController.singleton.leftHand, _playerHandsWeightJSON.val, _playerHandsWeightJSON.val / 2f));
+            _objects.Add(new EyeTargetCandidate(SuperController.singleton.rightHand, _playerHandsWeightJSON.val, _playerHandsWeightJSON.val / 2f));
         }
 
         foreach (var atom in SuperController.singleton.GetAtoms())
@@ -629,7 +629,7 @@ public class Glance : MVRScript
                     if (_disableAutoTarget.val) continue;
                     if (_windowCameraWeightJSON.val < 0.01f) continue;
                     if (atom.GetStorableByID("CameraControl")?.GetBoolParamValue("cameraOn") != true) continue;
-                    _objects.Add(new EyeTargetReference(atom.mainController.control, _windowCameraWeightJSON.val));
+                    _objects.Add(new EyeTargetCandidate(atom.mainController.control, _windowCameraWeightJSON.val));
                     _windowCameraInObjects = true;
                     break;
                 }
@@ -644,12 +644,12 @@ public class Glance : MVRScript
                             if (bone.name == "lHand" || bone.name == "rHand")
                             {
                                 if (_selfHandsWeightJSON.val >= 0.01f)
-                                    _objects.Add(new EyeTargetReference(bone.transform, _selfHandsWeightJSON.val));
+                                    _objects.Add(new EyeTargetCandidate(bone.transform, _selfHandsWeightJSON.val));
                             }
                             else if (bone.name == "Gen1" || bone.name == "Gen3")
                             {
                                 if (_selfGenitalsWeightJSON.val >= 0.01f)
-                                    _objects.Add(new EyeTargetReference(bone.transform, _selfGenitalsWeightJSON.val));
+                                    _objects.Add(new EyeTargetCandidate(bone.transform, _selfGenitalsWeightJSON.val, _selfGenitalsWeightJSON.val / 2f));
                             }
                         }
 
@@ -659,73 +659,68 @@ public class Glance : MVRScript
                     var bones = atom.transform.Find("rescale2").GetComponentsInChildren<DAZBone>();
                     if (_personsEyesWeightJSON.val > 0.01f)
                     {
-                        _objects.Add(new EyeTargetReference(bones.First(b => b.name == "lEye").transform, _personsEyesWeightJSON.val / 2f));
-                        _objects.Add(new EyeTargetReference(bones.First(b => b.name == "rEye").transform, _personsEyesWeightJSON.val / 2f));
+                        _objects.Add(new EyeTargetCandidate(bones.First(b => b.name == "lEye").transform, _personsEyesWeightJSON.val, _personsEyesWeightJSON.val / 2f));
+                        _objects.Add(new EyeTargetCandidate(bones.First(b => b.name == "rEye").transform, _personsEyesWeightJSON.val, _personsEyesWeightJSON.val / 2f));
                     }
                     if (_personsMouthWeightJSON.val > 0.01f)
                     {
-                        _objects.Add(new EyeTargetReference(bones.First(b => b.name == "tongue03").transform, _personsMouthWeightJSON.val));
+                        _objects.Add(new EyeTargetCandidate(bones.First(b => b.name == "tongue03").transform, _personsMouthWeightJSON.val));
                     }
                     if (_personsChestWeightJSON.val > 0.01f)
                     {
-                        _objects.Add(new EyeTargetReference(bones.First(b => b.name == "chest").transform, _personsChestWeightJSON.val));
+                        _objects.Add(new EyeTargetCandidate(bones.First(b => b.name == "chest").transform, _personsChestWeightJSON.val));
                     }
                     if (_personsNipplesWeightJSON.val > 0.01f)
                     {
-                        _objects.Add(new EyeTargetReference(atom.rigidbodies.First(b => b.name == "lNipple").transform, _personsNipplesWeightJSON.val / 2f));
-                        _objects.Add(new EyeTargetReference(atom.rigidbodies.First(b => b.name == "rNipple").transform, _personsNipplesWeightJSON.val / 2f));
+                        _objects.Add(new EyeTargetCandidate(atom.rigidbodies.First(b => b.name == "lNipple").transform, _personsNipplesWeightJSON.val, _personsNipplesWeightJSON.val / 2f));
+                        _objects.Add(new EyeTargetCandidate(atom.rigidbodies.First(b => b.name == "rNipple").transform, _personsNipplesWeightJSON.val, _personsNipplesWeightJSON.val / 2f));
                     }
                     if (_personsHandsWeightJSON.val > 0.01f)
                     {
-                        _objects.Add(new EyeTargetReference(bones.First(b => b.name == "lHand").transform, _personsHandsWeightJSON.val));
-                        _objects.Add(new EyeTargetReference(bones.First(b => b.name == "rHand").transform, _personsHandsWeightJSON.val));
+                        _objects.Add(new EyeTargetCandidate(bones.First(b => b.name == "lHand").transform, _personsHandsWeightJSON.val));
+                        _objects.Add(new EyeTargetCandidate(bones.First(b => b.name == "rHand").transform, _personsHandsWeightJSON.val));
                     }
                     if (_personsGenitalsWeightJSON.val > 0.01f)
                     {
                         var selector = atom.GetComponentInChildren<DAZCharacterSelector>();
                         if (selector.selectedCharacter.isMale)
                         {
-                            _objects.Add(new EyeTargetReference(bones.First(b => b.name == "Gen3").transform, _personsGenitalsWeightJSON.val * 0.8f));
-                            _objects.Add(new EyeTargetReference(bones.First(b => b.name == "Testes").transform, _personsGenitalsWeightJSON.val * 0.2f));
+                            _objects.Add(new EyeTargetCandidate(bones.First(b => b.name == "Gen3").transform, _personsGenitalsWeightJSON.val, _personsGenitalsWeightJSON.val * 0.8f));
+                            _objects.Add(new EyeTargetCandidate(bones.First(b => b.name == "Testes").transform, _personsGenitalsWeightJSON.val, _personsGenitalsWeightJSON.val * 0.2f));
                         }
                         else
                         {
-                            _objects.Add(new EyeTargetReference(bones.First(b => b.name == "hip").transform, _personsGenitalsWeightJSON.val));
+                            _objects.Add(new EyeTargetCandidate(bones.First(b => b.name == "hip").transform, _personsGenitalsWeightJSON.val));
                         }
                     }
                     if (_personsFeetWeightJSON.val > 0.01f)
                     {
-                        _objects.Add(new EyeTargetReference(bones.First(b => b.name == "lFoot").transform, _personsFeetWeightJSON.val / 2f));
-                        _objects.Add(new EyeTargetReference(bones.First(b => b.name == "rFoot").transform, _personsFeetWeightJSON.val / 2f));
+                        _objects.Add(new EyeTargetCandidate(bones.First(b => b.name == "lFoot").transform, _personsFeetWeightJSON.val, _personsFeetWeightJSON.val / 2f));
+                        _objects.Add(new EyeTargetCandidate(bones.First(b => b.name == "rFoot").transform, _personsFeetWeightJSON.val, _personsFeetWeightJSON.val / 2f));
                     }
 
                     break;
                 }
                 default:
                 {
-                    if (atom.IsBoolJSONParam("GlanceTarget"))
-                    {
-                        var storables = atom.GetStorableIDs();
-                        for (var i = 0; i < storables.Count; i++)
-                        {
-                            var storableId = storables[i];
-                            var storable = atom.GetStorableByID(storableId);
-                            var glanceOn = storable.GetBoolJSONParam("GlanceOn");
-                            if (glanceOn == null) continue;
-                            if (!glanceOn.val) break;
-                            var weight = storable.GetFloatParamValue("Weight");
-                            if (weight > 0.01f)
-                            {
-                                _objects.Add(new EyeTargetReference(atom.mainController.control, weight));
-                            }
-                            break;
-                        }
+                    if (!atom.IsBoolJSONParam("GlanceTarget"))
                         continue;
-                    }
 
-                    if (atom.uid.StartsWith("GlanceTarget_"))
+                    var storables = atom.GetStorableIDs();
+                    for (var i = 0; i < storables.Count; i++)
                     {
-                        _objects.Add(new EyeTargetReference(atom.mainController.control));
+                        var storableId = storables[i];
+                        var storable = atom.GetStorableByID(storableId);
+                        var glanceOn = storable.GetBoolJSONParam("GlanceOn");
+                        if (glanceOn == null) continue;
+                        if (!glanceOn.val) break;
+                        var weight = storable.GetFloatParamValue("Weight");
+                        if (weight > 0.01f)
+                        {
+                            _objects.Add(new EyeTargetCandidate(atom.mainController.control, weight));
+                        }
+
+                        break;
                     }
 
                     break;
@@ -749,7 +744,7 @@ public class Glance : MVRScript
         _mirrors.Clear();
         _objects.Clear();
         _lockTargetCandidates.Clear();
-        _lockTargetCandidatesScoreSum = 0f;
+        _lockTargetCandidatesProbabilitySum = 0f;
         _nextMirrorScanTime = 0f;
         _nextSyncCheckTime = 0f;
         _nextObjectsScanTime = 0f;
@@ -973,17 +968,17 @@ public class Glance : MVRScript
         }
         else
         {
-            var lockRoll = Random.Range(0f, _lockTargetCandidatesScoreSum);
-            var lockTarget = new EyeTargetReference(null, 0f);
+            var lockRoll = Random.Range(0f, _lockTargetCandidatesProbabilitySum);
+            var lockTarget = new EyeTargetCandidate(null, 0f);
             var sum = 0f;
             for (var i = 0; i < _lockTargetCandidates.Count; i++)
             {
                 lockTarget = _lockTargetCandidates[i];
-                sum += lockTarget.weight;
+                sum += lockTarget.probabilityWeight;
                 if (lockRoll < sum) break;
             }
             _lockTarget = lockTarget.transform;
-            var gazeDuration = (_lockMaxDurationJSON.val - _lockMinDurationJSON.val) * lockTarget.weight;
+            var gazeDuration = (_lockMaxDurationJSON.val - _lockMinDurationJSON.val) * lockTarget.durationWeight;
             _nextLockTargetTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMinDurationJSON.val + gazeDuration);
         }
 
@@ -1044,7 +1039,7 @@ public class Glance : MVRScript
 
         var previousLockTargetCount = _lockTargetCandidates.Count;
         _lockTargetCandidates.Clear();
-        _lockTargetCandidatesScoreSum = 0f;
+        _lockTargetCandidatesProbabilitySum = 0f;
 
         if (_objects.Count == 0) return;
 
@@ -1084,12 +1079,14 @@ public class Glance : MVRScript
             // Angle affects weight from 0.5f at 20 degrees to 1f at perfect forward
             const float angleWeight = 0.7f;
             var angleScore = (1f - angleWeight) + (1f - (Mathf.Clamp(Vector3.Angle(lookDirection, position - eyesCenter), 0, _frustrumJSON.val) / _frustrumJSON.val)) * angleWeight;
-            var score = o.weight * distanceScore * angleScore;
-            _lockTargetCandidates.Add(new EyeTargetReference(
+            var score = distanceScore * angleScore;
+            var probabilityWeight = o.probabilityWeight * score;
+            _lockTargetCandidates.Add(new EyeTargetCandidate(
                 o.transform,
-                score
+                probabilityWeight,
+                o.durationWeight * score
             ));
-            _lockTargetCandidatesScoreSum += score;
+            _lockTargetCandidatesProbabilitySum += probabilityWeight;
             if (distance < closestDistance)
             {
                 closestDistance = distance;
@@ -1099,11 +1096,11 @@ public class Glance : MVRScript
 
         if (_nothingWeightJSON.val > 0.01f)
         {
-            _lockTargetCandidates.Add(new EyeTargetReference(
+            _lockTargetCandidates.Add(new EyeTargetCandidate(
                 null,
                 _nothingWeightJSON.val
             ));
-            _lockTargetCandidatesScoreSum += _nothingWeightJSON.val;
+            _lockTargetCandidatesProbabilitySum += _nothingWeightJSON.val;
         }
 
         if (_lockTargetCandidates.Count > 0)
@@ -1266,15 +1263,22 @@ public class Glance : MVRScript
         SuperController.singleton.BroadcastMessage("OnActionsProviderDestroyed", this, SendMessageOptions.DontRequireReceiver);
     }
 
-    private struct EyeTargetReference
+    private struct EyeTargetCandidate
     {
-        public Transform transform;
-        public float weight;
+        public readonly Transform transform;
+        public readonly float probabilityWeight;
+        public readonly float durationWeight;
 
-        public EyeTargetReference(Transform transform, float weight = 1f)
+        public EyeTargetCandidate(Transform transform, float weight)
+            : this(transform, weight, weight)
+        {
+        }
+
+        public EyeTargetCandidate(Transform transform, float probabilityWeight, float durationWeight)
         {
             this.transform = transform;
-            this.weight = weight;
+            this.probabilityWeight = probabilityWeight;
+            this.durationWeight = durationWeight;
         }
     }
 }
