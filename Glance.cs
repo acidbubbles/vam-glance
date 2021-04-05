@@ -143,6 +143,8 @@ public class Glance : MVRScript
             _headRB = _head.GetComponent<Rigidbody>();
             _eyeTarget = containingAtom.freeControllers.First(fc => fc.name == "eyeTargetControl");
             _windowCameraControl =  SuperController.singleton.GetAtoms().FirstOrDefault(a => a.type == "WindowCamera")?.GetStorableByID("CameraControl")?.GetBoolJSONParam("cameraOn");
+
+            CreateTitle("Presets", true);
             var presetsJSON = new JSONStorableStringChooser("Presets", new List<string>
             {
                 "Defaults",
@@ -151,6 +153,7 @@ public class Glance : MVRScript
                 "Focused",
                 "Anime",
             }, "", "Apply preset") { isStorable = false };
+            CreateScrollablePopup(presetsJSON, true);
 
             CreateTitle("Auto targeting priorities", false);
             CreateToggle(_mirrorsJSON, false).label = "Mirrors (look at themselves)";
@@ -172,9 +175,6 @@ public class Glance : MVRScript
             CreateTitle("Debugging", false);
             CreateToggle(_debugJSON).label = "Show debug information";
             CreateTextField(_debugDisplayJSON);
-
-            CreateTitle("Presets", true);
-            CreateScrollablePopup(presetsJSON, true);
 
             CreateTitle("Frustrum settings (angle of view)", true);
             CreateSlider(_frustrumJSON, true, "Frustrum field of view", "F3");
