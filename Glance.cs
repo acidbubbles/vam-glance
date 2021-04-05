@@ -1027,7 +1027,7 @@ public class Glance : MVRScript
         }
 
         /*
-        foreach (var o in _objects)
+        foreach (var o in _lockTargetCandidates)
         {
             _debugDisplaySb.AppendLine($"Object: {o.transform.name} {o.weight * 100f:0.00}%");
         }
@@ -1078,8 +1078,13 @@ public class Glance : MVRScript
             var distance = Vector3.SqrMagnitude(bounds.center - eyesCenter);
             if (distance > _lookAtMirrorDistance) continue;
             if (!IsInAngleRange(eyesCenter, position)) continue;
-            var distanceScore = 1f - Mathf.Clamp((distance - _frustrumNearJSON.val) / (_frustrumFarJSON.val - _frustrumNearJSON.val), 0f, 0.5f);
-            var score = o.weight * distanceScore;
+            // Distance affects weight from 0.5f at far frustrum to 1f at near frustrum
+            const float distanceWeight = 0.5f;
+            var distanceScore = 1f - Mathf.Clamp((distance - _frustrumNearJSON.val) / (_frustrumFarJSON.val - _frustrumNearJSON.val), 0f, distanceWeight);
+            // Angle affects weight from 0.5f at 20 degrees to 1f at perfect forward
+            const float angleWeight = 0.7f;
+            var angleScore = (1f - angleWeight) + (1f - (Mathf.Clamp(Vector3.Angle(lookDirection, position - eyesCenter), 0, _frustrumJSON.val) / _frustrumJSON.val)) * angleWeight;
+            var score = o.weight * distanceScore * angleScore;
             _lockTargetCandidates.Add(new EyeTargetReference(
                 o.transform,
                 score
