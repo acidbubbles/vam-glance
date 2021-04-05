@@ -104,7 +104,7 @@ public class Glance : MVRScript
     private float _nextObjectsScanTime;
     private float _nextValidateExtremesTime;
     private float _nextLockTargetTime;
-    private Transform _lockTarget;
+    private EyeTargetCandidate _lockTarget = new EyeTargetCandidate(null, 0);
     private float _nextSaccadeTime;
     private Vector3 _saccadeOffset;
     private float _nextGazeTime;
@@ -788,7 +788,7 @@ public class Glance : MVRScript
         InvalidateExtremes();
         SelectLockTarget();
 
-        var hasTarget = !ReferenceEquals(_lockTarget, null);
+        var hasTarget = !ReferenceEquals(_lockTarget.transform, null);
         Vector3 lockPosition;
         if (hasTarget)
         {
@@ -943,7 +943,7 @@ public class Glance : MVRScript
                 _angularVelocityBurstCooldown = nextTime;
             }
 
-            _lockTarget = null;
+            _lockTarget = new EyeTargetCandidate(null, 0f);
             // Rescan projected direction immediately
             _nextObjectsScanTime = 0f;
             _nextLockTargetTime = 0f;
@@ -975,12 +975,12 @@ public class Glance : MVRScript
 
         if (_lockTargetCandidates.Count == 0)
         {
-            _lockTarget = null;
+            _lockTarget = new EyeTargetCandidate(null, 0f);
             _nextLockTargetTime = float.PositiveInfinity;
         }
         else if(_lockTargetCandidates.Count == 1)
         {
-            _lockTarget = _lockTargetCandidates[0].transform;
+            _lockTarget = _lockTargetCandidates[0];
             _nextLockTargetTime = float.PositiveInfinity;
         }
         else
@@ -994,7 +994,7 @@ public class Glance : MVRScript
                 sum += lockTarget.probabilityWeight;
                 if (lockRoll < sum) break;
             }
-            _lockTarget = lockTarget.transform;
+            _lockTarget = lockTarget;
             var gazeDuration = (_lockMaxDurationJSON.val - _lockMinDurationJSON.val) * lockTarget.durationWeight;
             _nextLockTargetTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMinDurationJSON.val + gazeDuration);
         }
@@ -1015,9 +1015,9 @@ public class Glance : MVRScript
         _debugDisplaySb.Append(" potential targets.");
         _debugDisplaySb.AppendLine();
 
-        if (!ReferenceEquals(_lockTarget, null))
+        if (!ReferenceEquals(_lockTarget.transform, null))
         {
-            var fc = _lockTarget.GetComponent<FreeControllerV3>();
+            var fc = _lockTarget.transform.GetComponent<FreeControllerV3>();
             if (!ReferenceEquals(fc, null))
             {
                 _debugDisplaySb.Append("Locked on '");
@@ -1029,7 +1029,7 @@ public class Glance : MVRScript
             else
             {
                 _debugDisplaySb.Append("Locked on '");
-                _debugDisplaySb.Append(_lockTarget.name);
+                _debugDisplaySb.Append(_lockTarget.transform.name);
                 _debugDisplaySb.AppendLine("'");
             }
         }
@@ -1078,8 +1078,8 @@ public class Glance : MVRScript
         //var planes = GeometryUtility.CalculateFrustumPlanes(SuperController.singleton.centerCameraTarget.targetCamera);
         CalculateFrustum(eyesCenter, lookDirection, _head.up, _frustrumJSON.val * Mathf.Deg2Rad, _frustrumRatioJSON.val, _frustrumNearJSON.val, _frustrumFarJSON.val, _frustrumPlanes);
 
-        Transform closest = null;
-        var closestDistance = float.PositiveInfinity;
+        var bestCandidate = new EyeTargetCandidate(null, 0f);
+        var bestScore = 0f;
         for (var i = 0; i < _objects.Count; i++)
         {
             var o = _objects[i];
@@ -1106,16 +1106,17 @@ public class Glance : MVRScript
             var angleScore = (1f - angleWeight) + (1f - (Mathf.Clamp(Vector3.Angle(lookDirection, position - eyesCenter), 0, _frustrumJSON.val) / _frustrumJSON.val)) * angleWeight;
             var score = distanceScore * angleScore;
             var probabilityWeight = o.probabilityWeight * score;
-            _lockTargetCandidates.Add(new EyeTargetCandidate(
+            var candidate = new EyeTargetCandidate(
                 o.transform,
                 probabilityWeight,
                 o.durationWeight * score
-            ));
+            );
+            _lockTargetCandidates.Add(candidate);
             _lockTargetCandidatesProbabilitySum += probabilityWeight;
-            if (distance < closestDistance)
+            if (probabilityWeight > bestScore)
             {
-                closestDistance = distance;
-                closest = o.transform;
+                bestScore = probabilityWeight;
+                bestCandidate = candidate;
             }
         }
 
@@ -1132,7 +1133,7 @@ public class Glance : MVRScript
         {
             if (previousLockTargetCount != _lockTargetCandidates.Count)
             {
-                _lockTarget = closest;
+                _lockTarget = bestCandidate;
                 _nextGazeTime = 0f;
             }
             if (float.IsPositiveInfinity(_nextLockTargetTime))
@@ -1143,9 +1144,9 @@ public class Glance : MVRScript
         }
         else
         {
-            if (!ReferenceEquals(_lockTarget, null))
+            if (!ReferenceEquals(_lockTarget.transform, null))
                 _nextGazeTime = 0f;
-            _lockTarget = null;
+            _lockTarget = new EyeTargetCandidate(null, 0f);
             _nextLockTargetTime = float.PositiveInfinity;
             SetLineColor(_frustrumLineRenderer, Color.gray);
         }
@@ -1160,7 +1161,7 @@ public class Glance : MVRScript
         _nextSaccadeTime = Time.time + _saccadeMaxDurationJSON.val;
         _nextMirrorScanTime = Time.time + _lockMaxDurationJSON.val;
         _nextValidateExtremesTime = Time.time + _lockMaxDurationJSON.val;
-        _lockTarget = SuperController.singleton.centerCameraTarget.transform;
+        _lockTarget = new EyeTargetCandidate(SuperController.singleton.centerCameraTarget.transform, 1f);
         _lookAtMirror = null;
     }
 
