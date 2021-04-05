@@ -1131,14 +1131,27 @@ public class Glance : MVRScript
 
         if (_lockTargetCandidates.Count > 0)
         {
-            if (previousLockTargetCount != _lockTargetCandidates.Count)
+            if (_lockTargetCandidates.Count > previousLockTargetCount)
             {
-                _lockTarget = bestCandidate;
-                _nextGazeTime = 0f;
+                // A better target entered view
+                if (!ReferenceEquals(_lockTarget.transform, null) && bestCandidate.transform != _lockTarget.transform && bestCandidate.probabilityWeight > _lockTarget.probabilityWeight)
+                {
+                    _lockTarget = bestCandidate;
+                    _nextGazeTime = 0f;
+                }
+                if (float.IsPositiveInfinity(_nextLockTargetTime))
+                    _nextLockTargetTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
             }
-            if (float.IsPositiveInfinity(_nextLockTargetTime))
+            else if (_lockTargetCandidates.Count < previousLockTargetCount)
             {
-                _nextLockTargetTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
+                // The current target left view
+                if (_lockTargetCandidates.FindIndex(c => c.transform == _lockTarget.transform) == -1)
+                {
+                    _lockTarget = bestCandidate;
+                    _nextGazeTime = 0f;
+                }
+                if (float.IsPositiveInfinity(_nextLockTargetTime))
+                    _nextLockTargetTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
             }
             SetLineColor(_frustrumLineRenderer, Color.cyan);
         }
