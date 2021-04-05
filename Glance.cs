@@ -146,7 +146,7 @@ public class Glance : MVRScript
             _eyeTarget = containingAtom.freeControllers.First(fc => fc.name == "eyeTargetControl");
             _windowCameraControl =  SuperController.singleton.GetAtoms().FirstOrDefault(a => a.type == "WindowCamera")?.GetStorableByID("CameraControl")?.GetBoolJSONParam("cameraOn");
 
-            CreateTitle("Presets", true);
+            CreateTitle("Presets", false);
             var presetsJSON = new JSONStorableStringChooser("Presets", new List<string>
             {
                 "Defaults",
@@ -155,17 +155,25 @@ public class Glance : MVRScript
                 "Focused",
                 "Anime",
             }, "", "Apply preset") { isStorable = false };
-            CreateScrollablePopup(presetsJSON, true);
+            CreateScrollablePopup(presetsJSON, false);
 
-            CreateTitle("Auto targeting priorities", false);
+            CreateTitle("Auto targeting", false);
             CreateToggle(_disableAutoTarget, false).label = "Disable automatic targeting";
             CreateToggle(_mirrorsJSON, false).label = "Mirrors (look at themselves)";
+
+            CreateTitle("Auto targeting priorities (you)", false);
             CreateSlider(_playerEyesWeightJSON, false, "Eyes (you)", "F4");
             CreateSlider(_playerMouthWeightJSON, false, "Mouth (you)", "F4");
             CreateSlider(_playerHandsWeightJSON, false, "Hands (you)", "F4");
+
+            CreateTitle("Auto targeting priorities (camera)", false);
             CreateSlider(_windowCameraWeightJSON, false, "Window camera", "F4");
+
+            CreateTitle("Auto targeting priorities (self)", false);
             CreateSlider(_selfHandsWeightJSON, false, "Hands (self)", "F4");
             CreateSlider(_selfGenitalsWeightJSON, false, "Genitals (self)", "F4");
+
+            CreateTitle("Auto targeting priorities (others)", false);
             CreateSlider(_personsEyesWeightJSON , false, "Eyes (others)", "F4");
             CreateSlider(_personsMouthWeightJSON , false, "Mouth (others)", "F4");
             CreateSlider(_personsChestWeightJSON , false, "Chest (others)", "F4");
@@ -173,6 +181,8 @@ public class Glance : MVRScript
             CreateSlider(_personsHandsWeightJSON , false, "Hands (others)", "F4");
             CreateSlider(_personsGenitalsWeightJSON , false, "Genitals (others)", "F4");
             CreateSlider(_personsFeetWeightJSON , false, "Feet (others)", "F4");
+
+            CreateTitle("Auto targeting priorities (nothing)", false);
             CreateSlider(_nothingWeightJSON, false, "Nothing (spacey)", "F4");
 
             CreateTitle("Debugging", false);
