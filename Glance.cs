@@ -601,21 +601,24 @@ public class Glance : MVRScript
         _nextMirrorScanTime = 0f;
         _nextSyncCheckTime = Time.time + _syncCheckSpan;
 
-        if (_playerEyesWeightJSON.val >= 0.01f)
+        if (!_disableAutoTarget.val)
         {
-            _objects.Add(new EyeTargetCandidate(_cameraLEye, _playerEyesWeightJSON.val, _playerEyesWeightJSON.val / 2f));
-            _objects.Add(new EyeTargetCandidate(_cameraREye, _playerEyesWeightJSON.val, _playerEyesWeightJSON.val / 2f));
-        }
+            if (_playerEyesWeightJSON.val >= 0.01f)
+            {
+                _objects.Add(new EyeTargetCandidate(_cameraLEye, _playerEyesWeightJSON.val, _playerEyesWeightJSON.val / 2f));
+                _objects.Add(new EyeTargetCandidate(_cameraREye, _playerEyesWeightJSON.val, _playerEyesWeightJSON.val / 2f));
+            }
 
-        if (_playerMouthWeightJSON.val >= 0.01f)
-        {
-            _objects.Add(new EyeTargetCandidate(_cameraMouth, _playerMouthWeightJSON.val));
-        }
+            if (_playerMouthWeightJSON.val >= 0.01f)
+            {
+                _objects.Add(new EyeTargetCandidate(_cameraMouth, _playerMouthWeightJSON.val));
+            }
 
-        if (_playerHandsWeightJSON.val >= 0.01f)
-        {
-            _objects.Add(new EyeTargetCandidate(SuperController.singleton.leftHand, _playerHandsWeightJSON.val, _playerHandsWeightJSON.val / 2f));
-            _objects.Add(new EyeTargetCandidate(SuperController.singleton.rightHand, _playerHandsWeightJSON.val, _playerHandsWeightJSON.val / 2f));
+            if (_playerHandsWeightJSON.val >= 0.01f)
+            {
+                _objects.Add(new EyeTargetCandidate(SuperController.singleton.leftHand, _playerHandsWeightJSON.val, _playerHandsWeightJSON.val / 2f));
+                _objects.Add(new EyeTargetCandidate(SuperController.singleton.rightHand, _playerHandsWeightJSON.val, _playerHandsWeightJSON.val / 2f));
+            }
         }
 
         foreach (var atom in SuperController.singleton.GetAtoms())
