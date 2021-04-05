@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 
 public class GlanceTarget : MVRScript
@@ -15,15 +16,10 @@ public class GlanceTarget : MVRScript
         CreateToggle(_onJSON).label = "On (will be looked at)";
         RegisterBool(_onJSON);
 
-        CreateSlider(_weightJSON).label = "Weight (look probability & duration)";
+        CreateSlider(_weightJSON).label = "Weight (probability/duration)";
         RegisterFloat(_weightJSON);
 
         OnEnable();
-
-        _onJSON.setCallbackFunction = _ => TriggerRescan();
-        _weightJSON.setCallbackFunction = _ => TriggerRescan();
-
-        // TODO: Allow specifying where the target is, e.g. on CUA
     }
 
     private void OnEnable()
@@ -34,7 +30,7 @@ public class GlanceTarget : MVRScript
             _glanceTargetJSON = new JSONStorableBool("GlanceTarget", true);
             _containingAtom.RegisterBool(_glanceTargetJSON);
         }
-        TriggerRescan();
+        StartCoroutine(TriggerRescanCo());
     }
 
     private void OnDisable()
@@ -43,13 +39,18 @@ public class GlanceTarget : MVRScript
         {
             _containingAtom.DeregisterBool(_glanceTargetJSON);
             _glanceTargetJSON = null;
-            TriggerRescan();
         }
+        TriggerRescan();
+    }
+
+    private IEnumerator TriggerRescanCo()
+    {
+        yield return new WaitForEndOfFrame();
+        TriggerRescan();
     }
 
     private static void TriggerRescan()
     {
-        // NOTE: Continuously updating the weight will not perform well
         SuperController.singleton.transform.parent.BroadcastMessage("GlanceRescan", SendMessageOptions.DontRequireReceiver);
     }
 }

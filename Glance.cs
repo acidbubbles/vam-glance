@@ -119,6 +119,7 @@ public class Glance : MVRScript
     private Transform _cameraLEye;
     private Transform _cameraREye;
     private JSONStorableBool _windowCameraControl;
+    private readonly List<GlanceTargetReference> _watchedGlanceTargets = new List<GlanceTargetReference>();
 
     public override void Init()
     {
@@ -600,6 +601,7 @@ public class Glance : MVRScript
         _nextLockTargetTime = 0f;
         _nextMirrorScanTime = 0f;
         _nextSyncCheckTime = Time.time + _syncCheckSpan;
+        _watchedGlanceTargets.Clear();
 
         if (!_disableAutoTarget.val)
         {
@@ -716,12 +718,14 @@ public class Glance : MVRScript
                         var storable = atom.GetStorableByID(storableId);
                         var glanceOn = storable.GetBoolJSONParam("GlanceOn");
                         if (glanceOn == null) continue;
+                        _watchedGlanceTargets.Add(new GlanceTargetReference
+                        {
+                            _onJSON = glanceOn,
+                            _onLast = glanceOn.val
+                        });
                         if (!glanceOn.val) break;
                         var weight = storable.GetFloatParamValue("Weight");
-                        if (weight > 0.01f)
-                        {
-                            _objects.Add(new EyeTargetCandidate(atom.mainController.control, weight));
-                        }
+                        _objects.Add(new EyeTargetCandidate(atom.mainController.control, weight));
 
                         break;
                     }
@@ -1044,6 +1048,14 @@ public class Glance : MVRScript
         _lockTargetCandidates.Clear();
         _lockTargetCandidatesProbabilitySum = 0f;
 
+        for (var i = 0; i < _watchedGlanceTargets.Count; i++)
+        {
+            var glanceTargetReference = _watchedGlanceTargets[i];
+            if (glanceTargetReference._onLast == glanceTargetReference._onJSON.val) continue;
+            SyncObjects();
+            break;
+        }
+
         if (_objects.Count == 0) return;
 
         // NOTE: Average expected direction and actual direction, since we don't know if the head will stop or not
@@ -1283,5 +1295,11 @@ public class Glance : MVRScript
             this.probabilityWeight = probabilityWeight;
             this.durationWeight = durationWeight;
         }
+    }
+
+    private struct GlanceTargetReference
+    {
+        public JSONStorableBool _onJSON;
+        public bool _onLast;
     }
 }
