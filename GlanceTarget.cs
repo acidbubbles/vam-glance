@@ -5,7 +5,7 @@ using UnityEngine;
 public class GlanceTarget : MVRScript
 {
     private readonly JSONStorableBool _onJSON = new JSONStorableBool("GlanceOn", true);
-    private readonly JSONStorableFloat _weightJSON = new JSONStorableFloat("Weight", 1f, 0f, 1f, true);
+    private readonly JSONStorableFloat _weightJSON = new JSONStorableFloat("Weight", 0.8f, 0f, 1f, true);
     private JSONStorableBool _glanceTargetJSON;
     private Atom _containingAtom;
 
