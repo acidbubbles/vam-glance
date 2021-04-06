@@ -1,5 +1,3 @@
-// TODO: Snap when looking away, still apply randomize (e.g. random spots in the frustrum)
-// TODO: Validate high view
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -42,11 +40,11 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _personsGenitalsWeightJSON = new JSONStorableFloat("PersonsGenitalsWeight", 0.5f, 0f, 1f, true);
     private readonly JSONStorableFloat _personsFeetWeightJSON = new JSONStorableFloat("PersonsFeetWeight", 0f, 0f, 1f, true);
     private readonly JSONStorableFloat _nothingWeightJSON = new JSONStorableFloat("NothingWeight", 0f, 0f, 1f, true);
-    private readonly JSONStorableFloat _frustrumJSON = new JSONStorableFloat("FrustrumFOV", 35f, 0f, 45f, false);
-    private readonly JSONStorableFloat _frustrumRatioJSON = new JSONStorableFloat("FrustrumRatio", 1.4f, 0.5f, 2f, false);
-    private readonly JSONStorableFloat _frustrumTiltJSON = new JSONStorableFloat("FrustrumTilt", -5f, -45f, 45f, true);
-    private readonly JSONStorableFloat _frustrumNearJSON = new JSONStorableFloat("FrustrumNear", 0.1f, 0f, 5f, false);
-    private readonly JSONStorableFloat _frustrumFarJSON = new JSONStorableFloat("FrustrumFar", 5f, 0f, 5f, false);
+    private readonly JSONStorableFloat _frustumJSON = new JSONStorableFloat("FrustumFOV", 35f, 0f, 45f, false);
+    private readonly JSONStorableFloat _frustumRatioJSON = new JSONStorableFloat("FrustumRatio", 1.4f, 0.5f, 2f, false);
+    private readonly JSONStorableFloat _frustumTiltJSON = new JSONStorableFloat("FrustumTilt", -5f, -45f, 45f, true);
+    private readonly JSONStorableFloat _frustumNearJSON = new JSONStorableFloat("FrustumNear", 0.1f, 0f, 5f, false);
+    private readonly JSONStorableFloat _frustumFarJSON = new JSONStorableFloat("FrustumFar", 5f, 0f, 5f, false);
     private readonly JSONStorableFloat _lockMinDurationJSON = new JSONStorableFloat("LockMinDuration", 0.5f, 0f, 10f, false);
     private readonly JSONStorableFloat _lockMaxDurationJSON = new JSONStorableFloat("LockMaxDuration", 2f, 0f, 10f, false);
     private readonly JSONStorableFloat _saccadeMinDurationJSON = new JSONStorableFloat("SaccadeMinDuration", 0.2f, 0f, 1f, false);
@@ -85,7 +83,7 @@ public class Glance : MVRScript
     private Transform _rEye;
     private Rigidbody _headRB;
     private FreeControllerV3 _eyeTarget;
-    private Quaternion _frustrumTilt = Quaternion.Euler(-5f, 0f, 0f);
+    private Quaternion _frustumTilt = Quaternion.Euler(-5f, 0f, 0f);
     private Quaternion _unlockedTilt = Quaternion.Euler(10f, 0f, 0f);
     private Vector2 _angularVelocityPredictiveMultiplier = new Vector2(0.3f, 0.5f);
     private bool _mirrorsSync;
@@ -95,7 +93,7 @@ public class Glance : MVRScript
     private Vector3 _eyeTargetRestorePosition;
     private EyesControl.LookMode _eyeBehaviorRestoreLookMode;
     private bool _blinkRestoreEnabled;
-    private readonly Plane[] _frustrumPlanes = new Plane[6];
+    private readonly Plane[] _frustumPlanes = new Plane[6];
     private readonly List<EyeTargetCandidate> _lockTargetCandidates = new List<EyeTargetCandidate>();
     private float _lockTargetCandidatesScoredWeightSum;
     private float _nextMirrorScanTime;
@@ -114,9 +112,9 @@ public class Glance : MVRScript
     private float _angularVelocityBurstCooldown;
     private float _newObjectCooldown;
     private readonly StringBuilder _debugDisplaySb = new StringBuilder();
-    private LineRenderer _frustrumLineRenderer;
+    private LineRenderer _frustumLineRenderer;
     private LineRenderer _lockLineRenderer;
-    private Vector3[] _frustrumLinePoints;
+    private Vector3[] _frustumLinePoints;
     private Vector3[] _lockLinePoints;
     private Transform _cameraMouth;
     private Transform _cameraLEye;
@@ -192,12 +190,12 @@ public class Glance : MVRScript
             CreateToggle(_debugJSON).label = "Show debug information";
             CreateTextField(_debugDisplayJSON);
 
-            CreateTitle("Frustrum settings (angle of view)", true);
-            CreateSlider(_frustrumJSON, true, "Frustrum field of view", "F3");
-            CreateSlider(_frustrumRatioJSON, true, "Frustrum ratio (multiply width)", "F3");
-            CreateSlider(_frustrumTiltJSON, true, "Frustrum tilt", "F3");
-            CreateSlider(_frustrumNearJSON, true, "Frustrum near (closest)", "F3");
-            CreateSlider(_frustrumFarJSON, true, "Frustrum far (furthest)", "F3");
+            CreateTitle("Frustum settings (angle of view)", true);
+            CreateSlider(_frustumJSON, true, "Frustum field of view", "F3");
+            CreateSlider(_frustumRatioJSON, true, "Frustum ratio (multiply width)", "F3");
+            CreateSlider(_frustumTiltJSON, true, "Frustum tilt", "F3");
+            CreateSlider(_frustumNearJSON, true, "Frustum near (closest)", "F3");
+            CreateSlider(_frustumFarJSON, true, "Frustum far (furthest)", "F3");
 
             CreateTitle("Timing", true);
             CreateSlider(_lockMinDurationJSON, true, "Min target lock time", "F3");
@@ -251,11 +249,11 @@ public class Glance : MVRScript
             RegisterFloat(_personsGenitalsWeightJSON );
             RegisterFloat(_personsFeetWeightJSON );
             RegisterFloat(_nothingWeightJSON);
-            RegisterFloat(_frustrumJSON);
-            RegisterFloat(_frustrumRatioJSON);
-            RegisterFloat(_frustrumTiltJSON);
-            RegisterFloat(_frustrumNearJSON);
-            RegisterFloat(_frustrumFarJSON);
+            RegisterFloat(_frustumJSON);
+            RegisterFloat(_frustumRatioJSON);
+            RegisterFloat(_frustumTiltJSON);
+            RegisterFloat(_frustumNearJSON);
+            RegisterFloat(_frustumFarJSON);
             RegisterFloat(_lockMinDurationJSON);
             RegisterFloat(_lockMaxDurationJSON);
             RegisterFloat(_saccadeMinDurationJSON);
@@ -296,10 +294,10 @@ public class Glance : MVRScript
             _personsFeetWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
             _nothingWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
             presetsJSON.setCallbackFunction = val => { ApplyPreset(val, presetsJSON); };
-            _frustrumJSON.setCallbackFunction = val => _frustrumJSON.valNoCallback = Mathf.Clamp(val, 0.001f, 179.999f);
-            _frustrumTiltJSON.setCallbackFunction = val => _frustrumTilt = Quaternion.Euler(val, 0f, 0f);
-            _frustrumNearJSON.setCallbackFunction = val => _frustrumFarJSON.valNoCallback = Mathf.Max(val, _frustrumFarJSON.val);
-            _frustrumFarJSON.setCallbackFunction = val => _frustrumNearJSON.valNoCallback = Mathf.Min(val, _frustrumNearJSON.val);
+            _frustumJSON.setCallbackFunction = val => _frustumJSON.valNoCallback = Mathf.Clamp(val, 0.001f, 179.999f);
+            _frustumTiltJSON.setCallbackFunction = val => _frustumTilt = Quaternion.Euler(val, 0f, 0f);
+            _frustumNearJSON.setCallbackFunction = val => _frustumFarJSON.valNoCallback = Mathf.Max(val, _frustumFarJSON.val);
+            _frustumFarJSON.setCallbackFunction = val => _frustumNearJSON.valNoCallback = Mathf.Min(val, _frustumNearJSON.val);
             _lockMinDurationJSON.setCallbackFunction = val => _lockMaxDurationJSON.valNoCallback = Mathf.Max(val, _lockMaxDurationJSON.val);
             _lockMaxDurationJSON.setCallbackFunction = val => _lockMinDurationJSON.valNoCallback = Mathf.Min(val, _lockMinDurationJSON.val);
             _saccadeMinDurationJSON.setCallbackFunction = val => _saccadeMaxDurationJSON.valNoCallback = Mathf.Max(val, _saccadeMaxDurationJSON.val);
@@ -375,7 +373,7 @@ public class Glance : MVRScript
                 _blinkSpaceMaxJSON.val = 3f;
                 break;
             case "Shy":
-                _frustrumJSON.val = 24f;
+                _frustumJSON.val = 24f;
                 _playerEyesWeightJSON.val = 0.2f;
                 _personsEyesWeightJSON.val = 0.2f;
                 _nothingWeightJSON.val = 0.4f;
@@ -407,7 +405,7 @@ public class Glance : MVRScript
             case "Anime":
                 _personsMouthWeightJSON.val = 0f;
                 _playerMouthWeightJSON.val = 0f;
-                _frustrumJSON.val = 35f;
+                _frustumJSON.val = 35f;
                 _saccadeMinDurationJSON.val = 0.07f;
                 _saccadeMaxDurationJSON.val = 0.07f;
                 _saccadeRangeJSON.val = 0.035f;
@@ -437,11 +435,11 @@ public class Glance : MVRScript
         _personsGenitalsWeightJSON .SetValToDefault();
         _personsFeetWeightJSON .SetValToDefault();
         _nothingWeightJSON.SetValToDefault();
-        _frustrumJSON.SetValToDefault();
-        _frustrumRatioJSON.SetValToDefault();
-        _frustrumTiltJSON.SetValToDefault();
-        _frustrumNearJSON.SetValToDefault();
-        _frustrumFarJSON.SetValToDefault();
+        _frustumJSON.SetValToDefault();
+        _frustumRatioJSON.SetValToDefault();
+        _frustumTiltJSON.SetValToDefault();
+        _frustumNearJSON.SetValToDefault();
+        _frustumFarJSON.SetValToDefault();
         _lockMinDurationJSON.SetValToDefault();
         _lockMaxDurationJSON.SetValToDefault();
         _saccadeMinDurationJSON.SetValToDefault();
@@ -473,13 +471,13 @@ public class Glance : MVRScript
             if (_lockLineRenderer != null) Destroy(_lockLineRenderer.gameObject);
             _lockLineRenderer = null;
             _lockLinePoints = null;
-            if (_frustrumLineRenderer != null) Destroy(_frustrumLineRenderer.gameObject);
-            _frustrumLineRenderer = null;
-            _frustrumLinePoints = null;
+            if (_frustumLineRenderer != null) Destroy(_frustumLineRenderer.gameObject);
+            _frustumLineRenderer = null;
+            _frustumLinePoints = null;
             return;
         }
 
-        if (_frustrumLineRenderer != null) return;
+        if (_frustumLineRenderer != null) return;
 
         var lockLineGo = new GameObject("Gaze_Debug_Lock");
         _lockLineRenderer = lockLineGo.AddComponent<LineRenderer>();
@@ -490,14 +488,14 @@ public class Glance : MVRScript
         _lockLineRenderer.positionCount = 3;
         _lockLinePoints = new Vector3[3];
 
-        var frustrumLineGo = new GameObject("Gaze_Debug_Frustrum");
-        _frustrumLineRenderer = frustrumLineGo.AddComponent<LineRenderer>();
-        _frustrumLineRenderer.useWorldSpace = true;
-        _frustrumLineRenderer.material = new Material(Shader.Find("Sprites/Default")) {renderQueue = 4000};
-        SetLineColor(_frustrumLineRenderer, Color.cyan);
-        _frustrumLineRenderer.widthMultiplier = 0.0004f;
-        _frustrumLineRenderer.positionCount = 16;
-        _frustrumLinePoints = new Vector3[16];
+        var frustumLineGo = new GameObject("Gaze_Debug_Frustum");
+        _frustumLineRenderer = frustumLineGo.AddComponent<LineRenderer>();
+        _frustumLineRenderer.useWorldSpace = true;
+        _frustumLineRenderer.material = new Material(Shader.Find("Sprites/Default")) {renderQueue = 4000};
+        SetLineColor(_frustumLineRenderer, Color.cyan);
+        _frustumLineRenderer.widthMultiplier = 0.0004f;
+        _frustumLineRenderer.positionCount = 16;
+        _frustumLinePoints = new Vector3[16];
 
         _nextLockTargetTime = 0f;
     }
@@ -923,7 +921,7 @@ public class Glance : MVRScript
         _nextGazeTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
 
         var angularRotation = GetGazeRotation();
-        _gazeTarget = eyesCenter + (_head.rotation * _frustrumTilt * _unlockedTilt * angularRotation * Vector3.forward) * _unlockedDistanceJSON.val;
+        _gazeTarget = eyesCenter + (_head.rotation * _frustumTilt * _unlockedTilt * angularRotation * Vector3.forward) * _unlockedDistanceJSON.val;
     }
 
     private Quaternion GetGazeRotation()
@@ -1077,13 +1075,13 @@ public class Glance : MVRScript
 
         // NOTE: Average expected direction and actual direction, since we don't know if the head will stop or not
         var angularRotation = GetGazeRotation();
-        var frustrumBaseRotation = _head.rotation * _frustrumTilt;
-        var naturalTarget = frustrumBaseRotation * angularRotation * Vector3.forward;
-        var headTarget = frustrumBaseRotation * Vector3.forward;
+        var frustumBaseRotation = _head.rotation * _frustumTilt;
+        var naturalTarget = frustumBaseRotation * angularRotation * Vector3.forward;
+        var headTarget = frustumBaseRotation * Vector3.forward;
         var lookDirection = ((headTarget.normalized + naturalTarget.normalized) / 2f).normalized;
 
         //var planes = GeometryUtility.CalculateFrustumPlanes(SuperController.singleton.centerCameraTarget.targetCamera);
-        CalculateFrustum(eyesCenter, lookDirection, _head.up, _frustrumJSON.val * Mathf.Deg2Rad, _frustrumRatioJSON.val, _frustrumNearJSON.val, _frustrumFarJSON.val, _frustrumPlanes);
+        CalculateFrustum(eyesCenter, lookDirection, _head.up, _frustumJSON.val * Mathf.Deg2Rad, _frustumRatioJSON.val, _frustumNearJSON.val, _frustumFarJSON.val, _frustumPlanes);
 
         var bestCandidate = new EyeTargetCandidate(null, _nullWeightJSON);
         for (var i = 0; i < _objects.Count; i++)
@@ -1100,16 +1098,16 @@ public class Glance : MVRScript
                 return;
             }
             var bounds = new Bounds(position, new Vector3(0.001f, 0.001f, 0.001f));
-            if (!GeometryUtility.TestPlanesAABB(_frustrumPlanes, bounds)) continue;
+            if (!GeometryUtility.TestPlanesAABB(_frustumPlanes, bounds)) continue;
             var distance = Vector3.SqrMagnitude(bounds.center - eyesCenter);
             if (distance > _lookAtMirrorDistance) continue;
             if (!IsInAngleRange(eyesCenter, position)) continue;
-            // Distance affects weight from 0.5f at far frustrum to 1f at near frustrum
+            // Distance affects weight from 0.5f at far frustum to 1f at near frustum
             const float distanceWeight = 0.5f;
-            var distanceScore = 1f - Mathf.Clamp((distance - _frustrumNearJSON.val) / (_frustrumFarJSON.val - _frustrumNearJSON.val), 0f, distanceWeight);
+            var distanceScore = 1f - Mathf.Clamp((distance - _frustumNearJSON.val) / (_frustumFarJSON.val - _frustumNearJSON.val), 0f, distanceWeight);
             // Angle affects weight from 0.5f at 20 degrees to 1f at perfect forward
             const float angleWeight = 0.7f;
-            var angleScore = (1f - angleWeight) + (1f - (Mathf.Clamp(Vector3.Angle(lookDirection, position - eyesCenter), 0, _frustrumJSON.val) / _frustrumJSON.val)) * angleWeight;
+            var angleScore = (1f - angleWeight) + (1f - (Mathf.Clamp(Vector3.Angle(lookDirection, position - eyesCenter), 0, _frustumJSON.val) / _frustumJSON.val)) * angleWeight;
             var score = distanceScore * angleScore;
             var probabilityWeight = o.weightJSON.val * score;
             var candidate = new EyeTargetCandidate(
@@ -1166,7 +1164,7 @@ public class Glance : MVRScript
                 if (float.IsPositiveInfinity(_nextLockTargetTime))
                     _nextLockTargetTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
             }
-            SetLineColor(_frustrumLineRenderer, Color.cyan);
+            SetLineColor(_frustumLineRenderer, Color.cyan);
         }
         else
         {
@@ -1174,7 +1172,7 @@ public class Glance : MVRScript
                 _nextGazeTime = 0f;
             _lockTarget = new EyeTargetCandidate(null, _nullWeightJSON);
             _nextLockTargetTime = float.PositiveInfinity;
-            SetLineColor(_frustrumLineRenderer, Color.gray);
+            SetLineColor(_frustumLineRenderer, Color.gray);
         }
 
         if (_debugJSON.val && UITransform.gameObject.activeInHierarchy)
@@ -1240,7 +1238,7 @@ public class Glance : MVRScript
     }
 
     // Source: http://answers.unity.com/answers/1024526/view.html
-    private void CalculateFrustum(Vector3 origin, Vector3 direction, Vector3 up, float fovRadians, float viewRatio, float near, float far, Plane[] frustrumPlanes)
+    private void CalculateFrustum(Vector3 origin, Vector3 direction, Vector3 up, float fovRadians, float viewRatio, float near, float far, Plane[] frustumPlanes)
     {
         var nearCenter = origin + direction * near;
         var farCenter = origin + direction * far;
@@ -1256,36 +1254,36 @@ public class Glance : MVRScript
         var nearTopLeft = nearCenter + camUp * (nearHeight * 0.5f) - camRight * (nearWidth * 0.5f);
         var nearTopRight = nearCenter + camUp * (nearHeight * 0.5f) + camRight * (nearWidth * 0.5f);
         var nearBottomRight = nearCenter - camUp * (nearHeight * 0.5f) + camRight * (nearWidth * 0.5f);
-        frustrumPlanes[0] = new Plane(nearTopLeft, farTopLeft, farBottomLeft);
-        frustrumPlanes[1] = new Plane(nearTopRight, nearBottomRight, farBottomRight);
-        frustrumPlanes[2] = new Plane(farBottomLeft, farBottomRight, nearBottomRight);
-        frustrumPlanes[3] = new Plane(farTopLeft, nearTopLeft, nearTopRight);
-        frustrumPlanes[4] = new Plane(nearBottomRight, nearTopRight, nearTopLeft);
-        frustrumPlanes[5] = new Plane(farBottomRight, farBottomLeft, farTopLeft);
+        frustumPlanes[0] = new Plane(nearTopLeft, farTopLeft, farBottomLeft);
+        frustumPlanes[1] = new Plane(nearTopRight, nearBottomRight, farBottomRight);
+        frustumPlanes[2] = new Plane(farBottomLeft, farBottomRight, nearBottomRight);
+        frustumPlanes[3] = new Plane(farTopLeft, nearTopLeft, nearTopRight);
+        frustumPlanes[4] = new Plane(nearBottomRight, nearTopRight, nearTopLeft);
+        frustumPlanes[5] = new Plane(farBottomRight, farBottomLeft, farTopLeft);
 
-        if (_frustrumLinePoints != null)
+        if (_frustumLinePoints != null)
         {
             //not needed; 6 points are sufficient to calculate the frustum
             var farTopRight = farCenter + camUp*(farHeight*0.5f) + camRight*(farWidth*0.5f);
             var nearBottomLeft  = nearCenter - camUp*(nearHeight*0.5f) - camRight*(nearWidth*0.5f);
 
-            _frustrumLinePoints[0] = nearTopLeft;
-            _frustrumLinePoints[1] = nearTopRight;
-            _frustrumLinePoints[2] = farTopRight;
-            _frustrumLinePoints[3] = nearTopRight;
-            _frustrumLinePoints[4] = nearBottomRight;
-            _frustrumLinePoints[5] = farBottomRight;
-            _frustrumLinePoints[6] = nearBottomRight;
-            _frustrumLinePoints[7] = nearBottomLeft;
-            _frustrumLinePoints[8] = farBottomLeft;
-            _frustrumLinePoints[9] = nearBottomLeft;
-            _frustrumLinePoints[10] = nearTopLeft;
-            _frustrumLinePoints[11] = farTopLeft;
-            _frustrumLinePoints[12] = farTopRight;
-            _frustrumLinePoints[13] = farBottomRight;
-            _frustrumLinePoints[14] = farBottomLeft;
-            _frustrumLinePoints[15] = farTopLeft;
-            _frustrumLineRenderer.SetPositions(_frustrumLinePoints);
+            _frustumLinePoints[0] = nearTopLeft;
+            _frustumLinePoints[1] = nearTopRight;
+            _frustumLinePoints[2] = farTopRight;
+            _frustumLinePoints[3] = nearTopRight;
+            _frustumLinePoints[4] = nearBottomRight;
+            _frustumLinePoints[5] = farBottomRight;
+            _frustumLinePoints[6] = nearBottomRight;
+            _frustumLinePoints[7] = nearBottomLeft;
+            _frustumLinePoints[8] = farBottomLeft;
+            _frustumLinePoints[9] = nearBottomLeft;
+            _frustumLinePoints[10] = nearTopLeft;
+            _frustumLinePoints[11] = farTopLeft;
+            _frustumLinePoints[12] = farTopRight;
+            _frustumLinePoints[13] = farBottomRight;
+            _frustumLinePoints[14] = farBottomLeft;
+            _frustumLinePoints[15] = farTopLeft;
+            _frustumLineRenderer.SetPositions(_frustumLinePoints);
         }
     }
 
@@ -1296,8 +1294,17 @@ public class Glance : MVRScript
 
     public override void RestoreFromJSON(JSONClass jc, bool restorePhysical = true, bool restoreAppearance = true, JSONArray presetAtoms = null, bool setMissingToDefault = true)
     {
+        if (jc.HasKey("FrustrumFOV"))
+        {
+            // 1.x backward compatibility
+            jc["FrustumFOV"] = jc["FrustrumFOV"];
+            jc["FrustumRatio"] = jc["FrustrumRatio"];
+            jc["FrustumTilt"] = jc["FrustrumTilt"];
+            jc["FrustumNear"] = jc["FrustrumNear"];
+            jc["FrustumFar"] = jc["FrustrumFar"];
+        }
         base.RestoreFromJSON(jc, restorePhysical, restoreAppearance, presetAtoms, setMissingToDefault);
-            _restored = true;
+        _restored = true;
     }
 
     public void OnBindingsListRequested(List<object> bindings)
@@ -1306,7 +1313,7 @@ public class Glance : MVRScript
         {
                 new KeyValuePair<string, string>("Namespace", "Glance")
             });
-        bindings.Add(new JSONStorableAction("Toggle_FrustrumDebug", () => _debugJSON.val = !_debugJSON.val));
+        bindings.Add(new JSONStorableAction("Toggle_FrustumDebug", () => _debugJSON.val = !_debugJSON.val));
         bindings.Add(new JSONStorableAction("FocusOnPlayer", FocusOnPlayer));
     }
 
