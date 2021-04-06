@@ -64,7 +64,7 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _blinkTimeMaxJSON = new JSONStorableFloat("BlinkTimeMax", 0.4f, 0f, 2f, false);
     private readonly JSONStorableFloat _cameraMouthDistanceJSON = new JSONStorableFloat("CameraMouthDistance", 0.053f, 0f, 0.1f, false);
     private readonly JSONStorableFloat _cameraEyesDistanceJSON = new JSONStorableFloat("CameraEyesDistance", 0.015f, 0f, 0.1f, false);
-    private readonly JSONStorableFloat _newObjectCooldownJSON = new JSONStorableFloat("NewObjectCooldown", 0.5f, 0f, 10f, false);
+    private readonly JSONStorableFloat _objectsInViewChangedCooldownJSON = new JSONStorableFloat("ObjectsInViewChangedCooldown", 0.5f, 0f, 10f, false);
     private readonly JSONStorableBool _preventUnnaturalEyeAngle = new JSONStorableBool("PreventUnnaturalEyeAngle", true);
     private readonly JSONStorableBool _debugJSON = new JSONStorableBool("Debug", false);
     private readonly JSONStorableString _debugDisplayJSON = new JSONStorableString("DebugDisplay", "");
@@ -110,7 +110,7 @@ public class Glance : MVRScript
     private float _nextGazeTime;
     private Vector3 _gazeTarget;
     private float _angularVelocityBurstCooldown;
-    private float _newObjectCooldown;
+    private float _objectsInViewChangedExpire;
     private readonly StringBuilder _debugDisplaySb = new StringBuilder();
     private LineRenderer _frustumLineRenderer;
     private LineRenderer _lockLineRenderer;
@@ -229,7 +229,7 @@ public class Glance : MVRScript
             CreateSlider(_cameraEyesDistanceJSON, true, "Camera eyes distance", "F4");
 
             CreateTitle("Other settings", true);
-            CreateSlider(_newObjectCooldownJSON, true, "New objects cooldown", "F4");
+            CreateSlider(_objectsInViewChangedCooldownJSON, true, "Objects in view changed cooldown", "F4");
             CreateToggle(_preventUnnaturalEyeAngle, true).label = "Prevent unnatural eye angle";
 
             RegisterStringChooser(presetsJSON);
@@ -273,7 +273,7 @@ public class Glance : MVRScript
             RegisterFloat(_blinkTimeMaxJSON);
             RegisterFloat(_cameraMouthDistanceJSON);
             RegisterFloat(_cameraEyesDistanceJSON);
-            RegisterFloat(_newObjectCooldownJSON);
+            RegisterFloat(_objectsInViewChangedCooldownJSON);
             RegisterBool(_preventUnnaturalEyeAngle);
             RegisterAction(new JSONStorableAction("FocusOnPlayer", FocusOnPlayer));
 
@@ -312,7 +312,7 @@ public class Glance : MVRScript
             _blinkTimeMaxJSON.setCallbackFunction = val => { _blinkTimeMinJSON.valNoCallback = Mathf.Min(val, _blinkTimeMinJSON.val); _eyelidBehavior.blinkTimeMax = val; };
             _cameraMouthDistanceJSON.setCallbackFunction = _ => { if (_cameraMouth != null) _cameraMouth.localPosition = new Vector3(0, -_cameraMouthDistanceJSON.val, 0); };
             _cameraEyesDistanceJSON.setCallbackFunction = _ => { if (_cameraMouth != null) { _cameraLEye.localPosition = new Vector3(-_cameraEyesDistanceJSON.val, 0, 0); _cameraREye.localPosition = new Vector3(_cameraEyesDistanceJSON.val, 0, 0); } };
-            _newObjectCooldownJSON.setCallbackFunction = _ => { _newObjectCooldown = 0f; };
+            _objectsInViewChangedCooldownJSON.setCallbackFunction = _ => { _objectsInViewChangedExpire = 0f; };
             _preventUnnaturalEyeAngle.setCallbackFunction = ValueChangedScheduleRescan;
             _debugJSON.setCallbackFunction = SyncDebug;
 
@@ -776,7 +776,7 @@ public class Glance : MVRScript
         _nextGazeTime = 0f;
         _gazeTarget = Vector3.zero;
         _angularVelocityBurstCooldown = 0f;
-        _newObjectCooldown = 0f;
+        _objectsInViewChangedExpire = 0f;
     }
 
     public void Update()
@@ -1138,31 +1138,36 @@ public class Glance : MVRScript
 
         if (_lockTargetCandidates.Count > 0)
         {
-            if (_lockTargetCandidates.Count > previousLockTargetCount && _newObjectCooldown < Time.time)
+            if (_objectsInViewChangedExpire < Time.time)
             {
-                // A better target entered view
-                // ReSharper disable once CompareOfFloatsByEqualityOperator
-                if (ReferenceEquals(_lockTarget.transform, null) || bestCandidate.transform != _lockTarget.transform && (bestCandidate.weightJSON.val > _lockTarget.weightJSON.val || bestCandidate.weightJSON.val == _lockTarget.weightJSON.val && bestCandidate.scoredWeight > _lockTarget.scoredWeight))
+                if (_lockTargetCandidates.Count > previousLockTargetCount)
                 {
-                    _newObjectCooldown = Time.time + _newObjectCooldownJSON.val;
-                    _lockTarget = bestCandidate;
-                    _nextGazeTime = 0f;
-                }
+                    // A better target entered view
+                    // ReSharper disable once CompareOfFloatsByEqualityOperator
+                    if (ReferenceEquals(_lockTarget.transform, null) || bestCandidate.transform != _lockTarget.transform &&
+                        (bestCandidate.weightJSON.val > _lockTarget.weightJSON.val ||
+                         bestCandidate.weightJSON.val == _lockTarget.weightJSON.val && bestCandidate.scoredWeight > _lockTarget.scoredWeight))
+                    {
+                        _objectsInViewChangedExpire = Time.time + _objectsInViewChangedCooldownJSON.val;
+                        _lockTarget = bestCandidate;
+                        _nextGazeTime = 0f;
+                    }
 
-                if (float.IsPositiveInfinity(_nextLockTargetTime))
-                    _nextLockTargetTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
-            }
-            else if (_lockTargetCandidates.Count < previousLockTargetCount)
-            {
-                // The current target left view
-                if (_lockTargetCandidates.FindIndex(c => c.transform == _lockTarget.transform) == -1)
+                    if (float.IsPositiveInfinity(_nextLockTargetTime))
+                        _nextLockTargetTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
+                }
+                else if (_lockTargetCandidates.Count < previousLockTargetCount)
                 {
-                    _lockTarget = bestCandidate;
-                    _nextGazeTime = 0f;
-                }
+                    // The current target left view
+                    if (_lockTargetCandidates.FindIndex(c => c.transform == _lockTarget.transform) == -1)
+                    {
+                        _lockTarget = bestCandidate;
+                        _nextGazeTime = 0f;
+                    }
 
-                if (float.IsPositiveInfinity(_nextLockTargetTime))
-                    _nextLockTargetTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
+                    if (float.IsPositiveInfinity(_nextLockTargetTime))
+                        _nextLockTargetTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMaxDurationJSON.val);
+                }
             }
             SetLineColor(_frustumLineRenderer, Color.cyan);
         }
