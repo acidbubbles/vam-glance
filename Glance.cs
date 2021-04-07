@@ -98,7 +98,8 @@ public class Glance : MVRScript
     private float _lockTargetCandidatesScoredWeightSum;
     private float _nextMirrorScanTime;
     private float _nextSyncCheckTime;
-    private bool _windowCameraInObjects;
+    private bool _windowCameraActivated;
+    private bool _monitorRigActivated = true;
     private BoxCollider _lookAtMirror;
     private float _lookAtMirrorDistance;
     private float _nextObjectsScanTime;
@@ -116,9 +117,9 @@ public class Glance : MVRScript
     private LineRenderer _lockLineRenderer;
     private Vector3[] _frustumLinePoints;
     private Vector3[] _lockLinePoints;
-    private Transform _cameraMouth;
-    private Transform _cameraLEye;
-    private Transform _cameraREye;
+    private FaceRig _mainCameraFaceRig;
+    private FaceRig _windowCameraFaceRig;
+    private Atom _windowCamera;
     private JSONStorableBool _windowCameraControl;
     private readonly List<GlanceTargetReference> _watchedGlanceTargets = new List<GlanceTargetReference>();
 
@@ -145,7 +146,9 @@ public class Glance : MVRScript
             _rEyeLimits = rEyeBone.GetComponent<LookAtWithLimits>();
             _headRB = _head.GetComponent<Rigidbody>();
             _eyeTarget = containingAtom.freeControllers.First(fc => fc.name == "eyeTargetControl");
-            _windowCameraControl =  SuperController.singleton.GetAtoms().FirstOrDefault(a => a.type == "WindowCamera")?.GetStorableByID("CameraControl")?.GetBoolJSONParam("cameraOn");
+            _windowCamera = SuperController.singleton.GetAtoms().FirstOrDefault(a => a.type == "WindowCamera");
+            // ReSharper disable once Unity.NoNullPropagation
+            _windowCameraControl =  _windowCamera?.GetStorableByID("CameraControl")?.GetBoolJSONParam("cameraOn");
 
             CreateTitle("Presets", false);
             var presetsJSON = new JSONStorableStringChooser("Presets", new List<string>
@@ -310,8 +313,8 @@ public class Glance : MVRScript
             _blinkSpaceMaxJSON.setCallbackFunction = val => { _blinkSpaceMinJSON.valNoCallback = Mathf.Min(val, _blinkSpaceMinJSON.val); _eyelidBehavior.blinkSpaceMax = val; };
             _blinkTimeMinJSON.setCallbackFunction = val => { _blinkTimeMaxJSON.valNoCallback = Mathf.Max(val, _blinkTimeMaxJSON.val); _eyelidBehavior.blinkTimeMin = val; };
             _blinkTimeMaxJSON.setCallbackFunction = val => { _blinkTimeMinJSON.valNoCallback = Mathf.Min(val, _blinkTimeMinJSON.val); _eyelidBehavior.blinkTimeMax = val; };
-            _cameraMouthDistanceJSON.setCallbackFunction = _ => { if (_cameraMouth != null) _cameraMouth.localPosition = new Vector3(0, -_cameraMouthDistanceJSON.val, 0); };
-            _cameraEyesDistanceJSON.setCallbackFunction = _ => { if (_cameraMouth != null) { _cameraLEye.localPosition = new Vector3(-_cameraEyesDistanceJSON.val, 0, 0); _cameraREye.localPosition = new Vector3(_cameraEyesDistanceJSON.val, 0, 0); } };
+            _cameraMouthDistanceJSON.setCallbackFunction = val => { _mainCameraFaceRig?.UpdateMouth(val); _windowCameraFaceRig?.UpdateMouth(val); };
+            _cameraEyesDistanceJSON.setCallbackFunction = val => { _mainCameraFaceRig?.UpdateEyes(val); _windowCameraFaceRig?.UpdateEyes(val); };
             _objectsInViewChangedCooldownJSON.setCallbackFunction = _ => { _objectsInViewChangedExpire = 0f; };
             _preventUnnaturalEyeAngle.setCallbackFunction = ValueChangedScheduleRescan;
             _debugJSON.setCallbackFunction = SyncDebug;
@@ -528,17 +531,8 @@ public class Glance : MVRScript
         {
             var camera = SuperController.singleton.centerCameraTarget.transform;
 
-            _cameraMouth = new GameObject("Glance_CameraMouth").transform;
-            _cameraMouth.SetParent(camera, false);
-            _cameraMouth.localPosition = new Vector3(0, -_cameraMouthDistanceJSON.val, 0);
-
-            _cameraLEye = new GameObject("Glance_CameraLEye").transform;
-            _cameraLEye.SetParent(camera, false);
-            _cameraLEye.localPosition = new Vector3(-_cameraEyesDistanceJSON.val, 0, 0);
-
-            _cameraREye = new GameObject("Glance_CameraREye").transform;
-            _cameraREye.SetParent(camera, false);
-            _cameraREye.localPosition = new Vector3(_cameraEyesDistanceJSON.val, 0, 0);
+            _mainCameraFaceRig = FaceRig.Create(camera, _cameraMouthDistanceJSON.val, _cameraEyesDistanceJSON.val);
+            _windowCameraFaceRig = FaceRig.Create(_windowCamera.mainController.control, _cameraMouthDistanceJSON.val, _cameraEyesDistanceJSON.val);
 
             _eyeTargetRestorePosition = _eyeTarget.control.position;
             _eyeTargetRestoreHidden = _eyeTarget.hidden;
@@ -567,9 +561,16 @@ public class Glance : MVRScript
         {
             _debugJSON.val = false;
 
-            if (_cameraMouth != null) Destroy(_cameraMouth.gameObject);
-            if (_cameraLEye != null) Destroy(_cameraLEye.gameObject);
-            if (_cameraREye != null) Destroy(_cameraREye.gameObject);
+            if (_mainCameraFaceRig?.owner != null)
+            {
+                Destroy(_mainCameraFaceRig.owner);
+                _mainCameraFaceRig = null;
+            }
+            if (_windowCameraFaceRig?.owner != null)
+            {
+                Destroy(_windowCameraFaceRig.owner);
+                _windowCameraFaceRig = null;
+            }
 
             SuperController.singleton.onAtomUIDsChangedHandlers -= ONAtomUIDsChanged;
 
@@ -610,24 +611,25 @@ public class Glance : MVRScript
     private void SyncObjects()
     {
         _objects.Clear();
-        _windowCameraInObjects = false;
+        _windowCameraActivated = false;
         _nextObjectsScanTime = 0f;
         _nextLockTargetTime = 0f;
         _nextMirrorScanTime = 0f;
         _nextSyncCheckTime = Time.time + _syncCheckSpan;
         _watchedGlanceTargets.Clear();
+        _monitorRigActivated = SuperController.singleton.centerCameraTarget.isActiveAndEnabled;
 
-        if (!_disableAutoTarget.val)
+        if (!_disableAutoTarget.val && _monitorRigActivated)
         {
             if (_playerEyesWeightJSON.val >= 0.01f)
             {
-                _objects.Add(new EyeTargetCandidate(_cameraLEye, _playerEyesWeightJSON, 0.5f));
-                _objects.Add(new EyeTargetCandidate(_cameraREye, _playerEyesWeightJSON, 0.5f));
+                _objects.Add(new EyeTargetCandidate(_mainCameraFaceRig.lEye, _playerEyesWeightJSON, 0.5f));
+                _objects.Add(new EyeTargetCandidate(_mainCameraFaceRig.rEye, _playerEyesWeightJSON, 0.5f));
             }
 
             if (_playerMouthWeightJSON.val >= 0.01f)
             {
-                _objects.Add(new EyeTargetCandidate(_cameraMouth, _playerMouthWeightJSON));
+                _objects.Add(new EyeTargetCandidate(_mainCameraFaceRig.mouth, _playerMouthWeightJSON));
             }
 
             if (_playerHandsWeightJSON.val >= 0.01f)
@@ -646,10 +648,28 @@ public class Glance : MVRScript
                 case "WindowCamera":
                 {
                     if (_disableAutoTarget.val) continue;
-                    if (_windowCameraWeightJSON.val < 0.01f) continue;
                     if (atom.GetStorableByID("CameraControl")?.GetBoolParamValue("cameraOn") != true) continue;
-                    _objects.Add(new EyeTargetCandidate(atom.mainController.control, _windowCameraWeightJSON));
-                    _windowCameraInObjects = true;
+                    _windowCameraActivated = true;
+                    if (_monitorRigActivated)
+                    {
+                        if (_windowCameraWeightJSON.val >= 0.01f)
+                        {
+                            _objects.Add(new EyeTargetCandidate(atom.mainController.control, _windowCameraWeightJSON));
+                        }
+                    }
+                    else
+                    {
+                        if (_playerEyesWeightJSON.val >= 0.01f)
+                        {
+                            _objects.Add(new EyeTargetCandidate(_windowCameraFaceRig.lEye, _playerEyesWeightJSON, 0.5f));
+                            _objects.Add(new EyeTargetCandidate(_windowCameraFaceRig.rEye, _playerEyesWeightJSON, 0.5f));
+                        }
+
+                        if (_playerMouthWeightJSON.val >= 0.01f)
+                        {
+                            _objects.Add(new EyeTargetCandidate(_windowCameraFaceRig.mouth, _playerMouthWeightJSON));
+                        }
+                    }
                     break;
                 }
                 case "Person":
@@ -830,11 +850,15 @@ public class Glance : MVRScript
         if (_nextSyncCheckTime > Time.time) return;
         _nextSyncCheckTime = Time.time + _syncCheckSpan;
 
-        if (_windowCameraWeightJSON.val >= 0.01)
+        if (_monitorRigActivated != SuperController.singleton.MonitorRig.gameObject.activeSelf)
         {
-            if (!_windowCameraInObjects && _windowCameraControl.val)
+            SyncObjects();
+        }
+        else if (_windowCameraWeightJSON.val >= 0.01)
+        {
+            if (!_windowCameraActivated && _windowCameraControl.val)
                 SyncObjects();
-            else if (_windowCameraInObjects && !_windowCameraControl.val)
+            else if (_windowCameraActivated && !_windowCameraControl.val)
                 SyncObjects();
         }
 
@@ -1090,6 +1114,7 @@ public class Glance : MVRScript
             Vector3 position;
             try
             {
+                if (!o.transform.gameObject.activeInHierarchy) continue;
                 position = o.transform.position;
             }
             catch (NullReferenceException)
@@ -1355,5 +1380,50 @@ public class Glance : MVRScript
     {
         public JSONStorableBool onJSON;
         public bool onLast;
+    }
+
+    private class FaceRig
+    {
+        public static FaceRig Create(Transform parent, float mouthDistance, float eyeDistance)
+        {
+            var owner = new GameObject("Glance_FaceRig");
+            owner.transform.SetParent(parent, false);
+
+            var mouth = new GameObject("Glance_TargetMouth").transform;
+            mouth.SetParent(owner.transform, false);
+            mouth.localPosition = new Vector3(0, -mouthDistance, 0);
+
+            var lEye = new GameObject("Glance_TargetLEye").transform;
+            lEye.SetParent(owner.transform, false);
+            lEye.localPosition = new Vector3(-eyeDistance, 0, 0);
+
+            var rEye = new GameObject("Glance_TargetREye").transform;
+            rEye.SetParent(owner.transform, false);
+            rEye.localPosition = new Vector3(eyeDistance, 0, 0);
+
+            return new FaceRig
+            {
+                owner = owner,
+                mouth = mouth,
+                lEye = lEye,
+                rEye = rEye
+            };
+        }
+
+        public GameObject owner;
+        public Transform lEye;
+        public Transform rEye;
+        public Transform mouth;
+
+        public void UpdateMouth(float distance)
+        {
+            mouth.localPosition = new Vector3(0, -distance, 0);
+        }
+
+        public void UpdateEyes(float distance)
+        {
+            lEye.localPosition = new Vector3(-distance, 0, 0);
+            rEye.localPosition = new Vector3(distance, 0, 0);
+        }
     }
 }
