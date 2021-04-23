@@ -553,7 +553,7 @@ public class Glance : MVRScript
 
             SuperController.singleton.onAtomUIDsChangedHandlers += ONAtomUIDsChanged;
 
-            GlanceRescan();
+            _needRescan = true;
         }
         catch (Exception e)
         {
