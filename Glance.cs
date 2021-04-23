@@ -165,7 +165,7 @@ public class Glance : MVRScript
             CreateScrollablePopup(presetsJSON, false);
 
             CreateTitle("Auto targeting", false);
-            CreateToggle(_disableAutoTarget, false).label = "Disable automatic targeting";
+            CreateToggle(_disableAutoTarget, false).label = "Only look at <i>GlanceTargets</i>";
             CreateToggle(_mirrorsJSON, false).label = "Mirrors (look at themselves)";
 
             CreateTitle("Auto targeting priorities (you)", false);
