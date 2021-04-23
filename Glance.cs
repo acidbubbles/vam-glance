@@ -136,19 +136,28 @@ public class Glance : MVRScript
 
         try
         {
+            if (containingAtom == null) throw new NullReferenceException(nameof(containingAtom));
             _eyeBehavior = (EyesControl) containingAtom.GetStorableByID("Eyes");
+            if (_eyeBehavior == null) throw new NullReferenceException(nameof(_eyeBehavior));
             _eyelidBehavior = (DAZMeshEyelidControl) containingAtom.GetStorableByID("EyelidControl");
+            if (_eyelidBehavior == null) throw new NullReferenceException(nameof(_eyelidBehavior));
             _bones = containingAtom.transform.Find("rescale2").GetComponentsInChildren<DAZBone>();
             _headControl = containingAtom.freeControllers.FirstOrDefault(fc => fc.name == "headControl");
-            _head = _bones.First(eye => eye.name == "head").transform;
+            if (_headControl == null) throw new NullReferenceException(nameof(_headControl));
+            _head = _bones.First(eye => eye.name == "head")?.transform;
+            if (_head == null) throw new NullReferenceException(nameof(_head));
             var lEyeBone = _bones.First(eye => eye.name == "lEye");
             _lEye = lEyeBone.transform;
             _lEyeLimits = lEyeBone.GetComponent<LookAtWithLimits>();
+            if (_lEyeLimits == null) throw new NullReferenceException(nameof(_lEyeLimits));
             var rEyeBone = _bones.First(eye => eye.name == "rEye");
             _rEye = rEyeBone.transform;
             _rEyeLimits = rEyeBone.GetComponent<LookAtWithLimits>();
+            if (_rEyeLimits == null) throw new NullReferenceException(nameof(_rEyeLimits));
             _headRB = _head.GetComponent<Rigidbody>();
-            _eyeTarget = containingAtom.freeControllers.First(fc => fc.name == "eyeTargetControl");
+            if (_headRB == null) throw new NullReferenceException(nameof(_headRB));
+            _eyeTarget = containingAtom.freeControllers.FirstOrDefault(fc => fc.name == "eyeTargetControl");
+            if (_eyeTarget == null) throw new NullReferenceException(nameof(_eyeTarget));
             _windowCamera = SuperController.singleton.GetAtoms().FirstOrDefault(a => a.type == "WindowCamera");
             // ReSharper disable once Unity.NoNullPropagation
             _windowCameraControl =  _windowCamera?.GetStorableByID("CameraControl")?.GetBoolJSONParam("cameraOn");
@@ -536,6 +545,7 @@ public class Glance : MVRScript
 
         try
         {
+            if (SuperController.singleton.centerCameraTarget == null) throw new NullReferenceException(nameof(SuperController.singleton.centerCameraTarget));
             var camera = SuperController.singleton.centerCameraTarget.transform;
 
             _mainCameraFaceRig = FaceRig.Create(camera, _cameraMouthDistanceJSON.val, _cameraEyesDistanceJSON.val);
