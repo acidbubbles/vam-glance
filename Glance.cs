@@ -70,6 +70,7 @@ public class Glance : MVRScript
     private readonly JSONStorableString _debugDisplayJSON = new JSONStorableString("DebugDisplay", "");
 
     private bool _ready;
+    private bool _initCalled;
     private bool _restored;
 	private bool _needRescan;
     private DAZBone[] _bones;
@@ -125,6 +126,8 @@ public class Glance : MVRScript
 
     public override void Init()
     {
+        _initCalled = true;
+
         if (containingAtom.type != "Person")
         {
             enabled = false;
@@ -525,7 +528,11 @@ public class Glance : MVRScript
 
     public void OnEnable()
     {
-        if (!_ready) return;
+        if (!_ready)
+        {
+            if (_initCalled) enabled = false;
+            return;
+        }
 
         try
         {
@@ -566,6 +573,7 @@ public class Glance : MVRScript
                 Destroy(_mainCameraFaceRig.owner);
                 _mainCameraFaceRig = null;
             }
+
             if (_windowCameraFaceRig?.owner != null)
             {
                 Destroy(_windowCameraFaceRig.owner);
@@ -574,16 +582,22 @@ public class Glance : MVRScript
 
             SuperController.singleton.onAtomUIDsChangedHandlers -= ONAtomUIDsChanged;
 
-            _eyeTarget.hidden = _eyeTargetRestoreHidden;
-            _eyeTarget.control.position = _eyeTargetRestorePosition;
+            if (_eyeTarget != null)
+            {
+                _eyeTarget.hidden = _eyeTargetRestoreHidden;
+                _eyeTarget.control.position = _eyeTargetRestorePosition;
+            }
 
-            _eyeBehavior.currentLookMode = _eyeBehaviorRestoreLookMode;
-            _eyelidBehavior.SetBoolParamValue("blinkEnabled", _blinkRestoreEnabled);
+            if (_eyeBehavior != null) _eyeBehavior.currentLookMode = _eyeBehaviorRestoreLookMode;
 
-            _eyelidBehavior.blinkSpaceMin = 1f;
-            _eyelidBehavior.blinkSpaceMax = 7f;
-            _eyelidBehavior.blinkTimeMin = 0.1f;
-            _eyelidBehavior.blinkTimeMax = 0.4f;
+            if (_eyelidBehavior != null)
+            {
+                _eyelidBehavior.SetBoolParamValue("blinkEnabled", _blinkRestoreEnabled);
+                _eyelidBehavior.blinkSpaceMin = 1f;
+                _eyelidBehavior.blinkSpaceMax = 7f;
+                _eyelidBehavior.blinkTimeMin = 0.1f;
+                _eyelidBehavior.blinkTimeMax = 0.4f;
+            }
 
             ClearState();
         }
