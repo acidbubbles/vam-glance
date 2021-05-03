@@ -904,6 +904,12 @@ public class Glance : MVRScript
         if (_nextSyncCheckTime > Time.time) return;
         _nextSyncCheckTime = Time.time + _syncCheckSpan;
 
+        if (!_useEyeTargetControl.val && _eyeBehavior.lookAt1.target != _glanceEyeTarget)
+        {
+            _eyeBehavior.lookAt1.target = _glanceEyeTarget;
+            _eyeBehavior.lookAt2.target = _glanceEyeTarget;
+        }
+
         if (_monitorRigActivated != SuperController.singleton.MonitorRig.gameObject.activeSelf)
         {
             SyncObjects();
