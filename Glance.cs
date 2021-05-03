@@ -66,6 +66,7 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _cameraEyesDistanceJSON = new JSONStorableFloat("CameraEyesDistance", 0.015f, 0f, 0.1f, false);
     private readonly JSONStorableFloat _objectsInViewChangedCooldownJSON = new JSONStorableFloat("ObjectsInViewChangedCooldown", 0.5f, 0f, 10f, false);
     private readonly JSONStorableBool _preventUnnaturalEyeAngle = new JSONStorableBool("PreventUnnaturalEyeAngle", true);
+    private readonly JSONStorableBool _useEyeTargetControl = new JSONStorableBool("UseEyeTargetControl", false);
     private readonly JSONStorableBool _debugJSON = new JSONStorableBool("Debug", false);
     private readonly JSONStorableString _debugDisplayJSON = new JSONStorableString("DebugDisplay", "");
 
@@ -123,6 +124,7 @@ public class Glance : MVRScript
     private Atom _windowCamera;
     private JSONStorableBool _windowCameraControl;
     private readonly List<GlanceTargetReference> _watchedGlanceTargets = new List<GlanceTargetReference>();
+    private Transform _glanceEyeTarget;
 
     public override void Init()
     {
@@ -144,7 +146,7 @@ public class Glance : MVRScript
             _bones = containingAtom.transform.Find("rescale2").GetComponentsInChildren<DAZBone>();
             _headControl = containingAtom.freeControllers.FirstOrDefault(fc => fc.name == "headControl");
             if (_headControl == null) throw new NullReferenceException(nameof(_headControl));
-            _head = _bones.First(eye => eye.name == "head")?.transform;
+            _head = _bones.FirstOrDefault(eye => eye.name == "head")?.transform;
             if (_head == null) throw new NullReferenceException(nameof(_head));
             var lEyeBone = _bones.First(eye => eye.name == "lEye");
             _lEye = lEyeBone.transform;
@@ -246,6 +248,7 @@ public class Glance : MVRScript
             CreateTitle("Other settings", true);
             CreateSlider(_objectsInViewChangedCooldownJSON, true, "Objects in view changed cooldown", "F4");
             CreateToggle(_preventUnnaturalEyeAngle, true).label = "Prevent unnatural eye angle";
+            CreateToggle(_useEyeTargetControl, true).label = "Use eyeTargetControl";
 
             RegisterStringChooser(presetsJSON);
             RegisterBool(_disableAutoTarget);
@@ -290,6 +293,7 @@ public class Glance : MVRScript
             RegisterFloat(_cameraEyesDistanceJSON);
             RegisterFloat(_objectsInViewChangedCooldownJSON);
             RegisterBool(_preventUnnaturalEyeAngle);
+            RegisterBool(_useEyeTargetControl);
             RegisterAction(new JSONStorableAction("FocusOnPlayer", FocusOnPlayer));
 
             _disableAutoTarget.setCallbackFunction = ValueChangedScheduleRescan;
@@ -329,6 +333,8 @@ public class Glance : MVRScript
             _cameraEyesDistanceJSON.setCallbackFunction = val => { _mainCameraFaceRig?.UpdateEyes(val); _windowCameraFaceRig?.UpdateEyes(val); };
             _objectsInViewChangedCooldownJSON.setCallbackFunction = _ => { _objectsInViewChangedExpire = 0f; };
             _preventUnnaturalEyeAngle.setCallbackFunction = ValueChangedScheduleRescan;
+            // ReSharper disable once Unity.InefficientPropertyAccess
+            _useEyeTargetControl.setCallbackFunction = val => { if(!enabled) return; enabled = false; enabled = true; };
             _debugJSON.setCallbackFunction = SyncDebug;
 
             SuperController.singleton.StartCoroutine(DeferredInit());
@@ -551,12 +557,22 @@ public class Glance : MVRScript
             _mainCameraFaceRig = FaceRig.Create(camera, _cameraMouthDistanceJSON.val, _cameraEyesDistanceJSON.val);
             _windowCameraFaceRig = FaceRig.Create(_windowCamera.mainController.control, _cameraMouthDistanceJSON.val, _cameraEyesDistanceJSON.val);
 
-            _eyeTargetRestorePosition = _eyeTarget.control.position;
-            _eyeTargetRestoreHidden = _eyeTarget.hidden;
-            _eyeTarget.hidden = true;
-
             _eyeBehaviorRestoreLookMode = _eyeBehavior.currentLookMode;
-            _eyeBehavior.currentLookMode = EyesControl.LookMode.Target;
+
+            if (!_useEyeTargetControl.val)
+            {
+                _glanceEyeTarget = new GameObject("GlanceEyeTarget").transform;
+                _eyeBehavior.currentLookMode = EyesControl.LookMode.Custom;
+                _eyeBehavior.lookAt1.target = _glanceEyeTarget;
+                _eyeBehavior.lookAt2.target = _glanceEyeTarget;
+            }
+            else
+            {
+                _eyeTargetRestorePosition = _eyeTarget.control.position;
+                _eyeTargetRestoreHidden = _eyeTarget.hidden;
+                _eyeTarget.hidden = true;
+                _eyeBehavior.currentLookMode = EyesControl.LookMode.Target;
+            }
 
             _blinkRestoreEnabled = _eyelidBehavior.GetBoolParamValue("blinkEnabled");
             _eyelidBehavior.SetBoolParamValue("blinkEnabled", true);
@@ -592,13 +608,23 @@ public class Glance : MVRScript
 
             SuperController.singleton.onAtomUIDsChangedHandlers -= ONAtomUIDsChanged;
 
-            if (_eyeTarget != null)
+            if (_glanceEyeTarget != null)
+            {
+                Destroy(_glanceEyeTarget.gameObject);
+                _glanceEyeTarget = null;
+                _eyeBehavior.lookAt1.target = null;
+                _eyeBehavior.lookAt2.target = null;
+            }
+            else if (_eyeTarget != null)
             {
                 _eyeTarget.hidden = _eyeTargetRestoreHidden;
                 _eyeTarget.control.position = _eyeTargetRestorePosition;
             }
 
-            if (_eyeBehavior != null) _eyeBehavior.currentLookMode = _eyeBehaviorRestoreLookMode;
+            if (_eyeBehavior != null)
+            {
+                _eyeBehavior.currentLookMode = _eyeBehaviorRestoreLookMode;
+            }
 
             if (_eyelidBehavior != null)
             {
@@ -855,7 +881,11 @@ public class Glance : MVRScript
         }
 
         SelectSaccade();
-        _eyeTarget.control.position = lockPosition + _saccadeOffset;
+        var finalPosition = lockPosition + _saccadeOffset;
+        if(!ReferenceEquals(_glanceEyeTarget, null))
+            _glanceEyeTarget.position = finalPosition;
+        else
+            _eyeTarget.control.position = finalPosition;
 
         if (_lockLinePoints != null)
         {
