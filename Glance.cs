@@ -174,6 +174,7 @@ public class Glance : MVRScript
             CreateTitle("Presets", false);
             var presetsJSON = new JSONStorableStringChooser("Presets", new List<string>
             {
+                "None",
                 "Defaults",
                 "Horny",
                 "Shy",
@@ -380,6 +381,19 @@ public class Glance : MVRScript
         ResetToDefaults();
         switch (val)
         {
+            case "None":
+                _playerEyesWeightJSON.val = 0;
+                _playerMouthWeightJSON.val = 0;
+                _playerHandsWeightJSON.val = 0;
+                _windowCameraWeightJSON.val = 0;
+                _selfGenitalsWeightJSON.val = 0;
+                _personsEyesWeightJSON.val = 0;
+                _personsMouthWeightJSON.val = 0;
+                _personsHandsWeightJSON.val = 0;
+                _personsChestWeightJSON.val = 0;
+                _personsNipplesWeightJSON.val = 0;
+                _personsGenitalsWeightJSON.val = 0;
+                break;
             case "Horny":
                 _playerMouthWeightJSON.val = 0.8f;
                 _personsMouthWeightJSON.val = 0.8f;
