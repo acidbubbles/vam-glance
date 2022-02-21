@@ -125,6 +125,7 @@ public class Glance : MVRScript
     private JSONStorableBool _windowCameraControl;
     private readonly List<GlanceTargetReference> _watchedGlanceTargets = new List<GlanceTargetReference>();
     private Transform _glanceEyeTarget;
+    private UIDynamicTextField _debugDisplayField;
 
     public override void Init()
     {
@@ -164,6 +165,12 @@ public class Glance : MVRScript
             // ReSharper disable once Unity.NoNullPropagation
             _windowCameraControl =  _windowCamera?.GetStorableByID("CameraControl")?.GetBoolJSONParam("cameraOn");
 
+
+            CreateTitle("Diagnostic", false);
+            CreateToggle(_debugJSON).label = "Show viewing area";
+            _debugDisplayField = CreateTextField(_debugDisplayJSON);
+            _debugDisplayField.gameObject.SetActive(false);
+
             CreateTitle("Presets", false);
             var presetsJSON = new JSONStorableStringChooser("Presets", new List<string>
             {
@@ -202,10 +209,6 @@ public class Glance : MVRScript
 
             CreateTitle("Auto targeting priorities (nothing)", false);
             CreateSlider(_nothingWeightJSON, false, "Nothing (spacey)", "F4");
-
-            CreateTitle("Debugging", false);
-            CreateToggle(_debugJSON).label = "Show debug information";
-            CreateTextField(_debugDisplayJSON);
 
             CreateTitle("Frustum settings (angle of view)", true);
             CreateSlider(_frustumJSON, true, "Frustum field of view", "F3");
@@ -487,6 +490,8 @@ public class Glance : MVRScript
 
     private void SyncDebug(bool val)
     {
+        _debugDisplayField.gameObject.SetActive(val);
+
         if (!val)
         {
             if (_lockLineRenderer != null) Destroy(_lockLineRenderer.gameObject);
