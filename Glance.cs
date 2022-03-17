@@ -39,7 +39,7 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _personsGenitalsWeightJSON = new JSONStorableFloat("PersonsGenitalsWeight", 0.5f, 0f, 1f, true);
     private readonly JSONStorableFloat _personsFeetWeightJSON = new JSONStorableFloat("PersonsFeetWeight", 0f, 0f, 1f, true);
     private readonly JSONStorableFloat _nothingWeightJSON = new JSONStorableFloat("NothingWeight", 0f, 0f, 1f, true);
-    private readonly JSONStorableFloat _frustumJSON = new JSONStorableFloat("FrustumFOV", 35f, 0f, 45f, false);
+    private readonly JSONStorableFloat _frustumJSON = new JSONStorableFloat("FrustumFOV", 45f, 0f, 135f, false);
     private readonly JSONStorableFloat _frustumRatioJSON = new JSONStorableFloat("FrustumRatio", 1.4f, 0.5f, 2f, false);
     private readonly JSONStorableFloat _frustumTiltJSON = new JSONStorableFloat("FrustumTilt", -5f, -45f, 45f, true);
     private readonly JSONStorableFloat _frustumNearJSON = new JSONStorableFloat("FrustumNear", 0.1f, 0f, 5f, false);
