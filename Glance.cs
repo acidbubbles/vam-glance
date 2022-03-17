@@ -29,9 +29,9 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _playerMouthWeightJSON = new JSONStorableFloat("PlayerMouthWeight", 0.05f, 0f, 1f, true);
     private readonly JSONStorableFloat _playerHandsWeightJSON = new JSONStorableFloat("PlayerHandsWeight", 0.1f, 0f, 1f, true);
     private readonly JSONStorableFloat _windowCameraWeightJSON = new JSONStorableFloat("WindowCameraWeight", 1f, 0f, 1f, true);
-    private readonly JSONStorableFloat _selfEyesWeightJSON = new JSONStorableFloat("SelfEyesWeight", 0f, 0f, 1f, true);
-    private readonly JSONStorableFloat _selfMouthWeightJSON = new JSONStorableFloat("SelfMouthWeight", 0.8f, 0f, 1f, true);
-    private readonly JSONStorableFloat _selfHandsWeightJSON = new JSONStorableFloat("SelfHandsWeight", 0.4f, 0f, 1f, true);
+    private readonly JSONStorableFloat _selfEyesWeightJSON = new JSONStorableFloat("SelfEyesWeight", 0.5f, 0f, 1f, true);
+    private readonly JSONStorableFloat _selfMouthWeightJSON = new JSONStorableFloat("SelfMouthWeight", 0.2f, 0f, 1f, true);
+    private readonly JSONStorableFloat _selfHandsWeightJSON = new JSONStorableFloat("SelfHandsWeight", 0f, 0f, 1f, true);
     private readonly JSONStorableFloat _selfGenitalsWeightJSON = new JSONStorableFloat("SelfGenitalsWeight", 1f, 0f, 1f, true);
     private readonly JSONStorableFloat _personsEyesWeightJSON = new JSONStorableFloat("PersonsEyesWeight", 1f, 0f, 1f, true);
     private readonly JSONStorableFloat _personsMouthWeightJSON = new JSONStorableFloat("PersonsMouthWeight", 0.05f, 0f, 1f, true);
