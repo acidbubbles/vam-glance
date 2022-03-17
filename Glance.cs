@@ -165,7 +165,6 @@ public class Glance : MVRScript
             CreateTitle("Diagnostic", false);
             CreateToggle(_debugJSON).label = "Show viewing area";
             _debugDisplayField = CreateTextField(_debugDisplayJSON);
-            _debugDisplayField.gameObject.SetActive(false);
 
             CreateTitle("Presets", false);
             var presetsJSON = new JSONStorableStringChooser("Presets", new List<string>
@@ -344,6 +343,14 @@ public class Glance : MVRScript
             SuperController.LogError($"{nameof(Glance)}.{nameof(Init)}: {e}");
             enabled = false;
         }
+    }
+
+    public override void InitUI()
+    {
+        base.InitUI();
+
+        if (_debugDisplayField != null)
+            _debugDisplayField.gameObject.SetActive(false);
     }
 
     private void CreateTitle(string text, bool rightSide = false)
