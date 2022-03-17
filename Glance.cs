@@ -57,10 +57,12 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _quickTurnMultiplierYJSON = new JSONStorableFloat("QuickTurnMultiplierY", 0.3f, 0f, 1f, false);
     private readonly JSONStorableFloat _unlockedTiltJSON = new JSONStorableFloat("UnlockedTilt", 10f, -30f, 30f, false);
     private readonly JSONStorableFloat _unlockedDistanceJSON = new JSONStorableFloat("UnlockedDistance", 0.8f, 0f, 2f, false);
+    private readonly JSONStorableBool _blinkEnabledJSON = new JSONStorableBool("BlinkEnabled", true) { isStorable = false, isRestorable = false};
     private readonly JSONStorableFloat _blinkSpaceMinJSON = new JSONStorableFloat("BlinkSpaceMin", 1f, 0f, 10f, false);
     private readonly JSONStorableFloat _blinkSpaceMaxJSON = new JSONStorableFloat("BlinkSpaceMax", 7f, 0f, 10f, false);
     private readonly JSONStorableFloat _blinkTimeMinJSON = new JSONStorableFloat("BlinkTimeMin", 0.1f, 0f, 2f, false);
     private readonly JSONStorableFloat _blinkTimeMaxJSON = new JSONStorableFloat("BlinkTimeMax", 0.4f, 0f, 2f, false);
+    private readonly JSONStorableAction _blinkNowJSON;
     private readonly JSONStorableFloat _cameraMouthDistanceJSON = new JSONStorableFloat("CameraMouthDistance", 0.053f, 0f, 0.1f, false);
     private readonly JSONStorableFloat _cameraEyesDistanceJSON = new JSONStorableFloat("CameraEyesDistance", 0.015f, 0f, 0.1f, false);
     private readonly JSONStorableFloat _objectsInViewChangedCooldownJSON = new JSONStorableFloat("ObjectsInViewChangedCooldown", 0.5f, 0f, 10f, false);
@@ -123,6 +125,11 @@ public class Glance : MVRScript
     private Transform _glanceEyeTarget;
     private UIDynamicTextField _debugDisplayField;
 
+    public Glance()
+    {
+        _blinkNowJSON = new JSONStorableAction("BlinkNow", () => _eyelidBehavior?.Blink());
+    }
+
     public override void Init()
     {
         _initCalled = true;
@@ -160,7 +167,7 @@ public class Glance : MVRScript
             _windowCamera = SuperController.singleton.GetAtoms().FirstOrDefault(a => a.type == "WindowCamera");
             // ReSharper disable once Unity.NoNullPropagation
             _windowCameraControl =  _windowCamera?.GetStorableByID("CameraControl")?.GetBoolJSONParam("cameraOn");
-
+            _blinkEnabledJSON.valNoCallback = _eyelidBehavior.GetBoolParamValue("blinkEnabled");
 
             CreateTitle("Diagnostic", false);
             CreateToggle(_debugJSON).label = "Show viewing area";
@@ -235,10 +242,12 @@ public class Glance : MVRScript
             CreateSlider(_unlockedDistanceJSON, true, "Spacey distance", "F3");
 
             CreateTitle("Blinking", true);
+            CreateToggle(_blinkEnabledJSON, true).label = "Auto Blink Enabled";
             CreateSlider(_blinkSpaceMinJSON, true, "Blink space min", "F2");
             CreateSlider(_blinkSpaceMaxJSON, true, "Blink space max", "F3");
             CreateSlider(_blinkTimeMinJSON, true, "Blink time min", "F4");
             CreateSlider(_blinkTimeMaxJSON, true, "Blink time max", "F4");
+            _blinkNowJSON.button = CreateButton("Blink now", true).button;
 
             CreateTitle("Player eyes and mouth", true);
             CreateSlider(_cameraMouthDistanceJSON, true, "Camera mouth distance", "F4");
@@ -284,10 +293,12 @@ public class Glance : MVRScript
             RegisterFloat(_quickTurnMultiplierYJSON);
             RegisterFloat(_unlockedTiltJSON);
             RegisterFloat(_unlockedDistanceJSON);
+            RegisterBool(_blinkEnabledJSON);
             RegisterFloat(_blinkSpaceMinJSON);
             RegisterFloat(_blinkSpaceMaxJSON);
             RegisterFloat(_blinkTimeMinJSON);
             RegisterFloat(_blinkTimeMaxJSON);
+            RegisterAction(_blinkNowJSON);
             RegisterFloat(_cameraMouthDistanceJSON);
             RegisterFloat(_cameraEyesDistanceJSON);
             RegisterFloat(_objectsInViewChangedCooldownJSON);
@@ -324,6 +335,7 @@ public class Glance : MVRScript
             _quickTurnMultiplierYJSON.setCallbackFunction = val => _angularVelocityPredictiveMultiplier = new Vector3(_quickTurnMultiplierXJSON.val, _quickTurnMultiplierYJSON.val, 0);
             _unlockedTiltJSON.setCallbackFunction = val => { _unlockedTilt = Quaternion.Euler(val, 0f, 0f); _nextLockTargetTime = 0f; _nextGazeTime = 0f; };
             _unlockedDistanceJSON.setCallbackFunction = val => { _nextGazeTime = 0f; };
+            _blinkEnabledJSON.setCallbackFunction = val => _eyelidBehavior.SetBoolParamValue("blinkEnabled", val);
             _blinkSpaceMinJSON.setCallbackFunction = val => { _blinkSpaceMaxJSON.valNoCallback = Mathf.Max(val, _blinkSpaceMaxJSON.val); _eyelidBehavior.blinkSpaceMin = val; };
             _blinkSpaceMaxJSON.setCallbackFunction = val => { _blinkSpaceMinJSON.valNoCallback = Mathf.Min(val, _blinkSpaceMinJSON.val); _eyelidBehavior.blinkSpaceMax = val; };
             _blinkTimeMinJSON.setCallbackFunction = val => { _blinkTimeMaxJSON.valNoCallback = Mathf.Max(val, _blinkTimeMaxJSON.val); _eyelidBehavior.blinkTimeMin = val; };
