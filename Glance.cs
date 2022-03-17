@@ -880,7 +880,7 @@ public class Glance : MVRScript
         {
             if (!ReferenceEquals(_lockTarget.lookAtMirror, null))
             {
-                var reflectPosition = ComputeMirrorLookback(_lockTarget.lookAtMirror, _lockTarget.transform.position);
+                var reflectPosition = ComputeReflectedPosition(_lockTarget.lookAtMirror, _lockTarget.transform.position);
                 lockPosition = reflectPosition;
             }
             else
@@ -1002,7 +1002,7 @@ public class Glance : MVRScript
         return true;
     }
 
-    private Vector3 ComputeMirrorLookback(BoxCollider lookAtMirror, Vector3 position)
+    private static Vector3 ComputeReflectedPosition(Component lookAtMirror, Vector3 position)
     {
         var mirrorTransform = lookAtMirror.transform;
         var mirrorPosition = mirrorTransform.position;
@@ -1186,9 +1186,7 @@ public class Glance : MVRScript
         BoxCollider lookAtMirror = null;
         if (_mirrors.Count == 1)
         {
-            var headPosition = _head.position;
             lookAtMirror = _mirrors[0];
-            lookAtMirrorDistance = Vector3.Distance(headPosition, lookAtMirror.transform.position);
         }
         else if (_mirrors.Count > 1)
         {
@@ -1238,30 +1236,22 @@ public class Glance : MVRScript
                 return;
             }
 
-            var bounds = new Bounds(position, new Vector3(0.001f, 0.001f, 0.001f));
-            var distance = Vector3.SqrMagnitude(bounds.center - eyesCenter);
-            if (distance < lookAtMirrorDistance && IsInAngleRange(eyesCenter, position) && GeometryUtility.TestPlanesAABB(_frustumPlanes, bounds))
+            float probabilityWeight;
+            if (TryAddCandidate(o, position, eyesCenter, lookDirection, out probabilityWeight))
             {
-                // Distance affects weight from 0.5f at far frustum to 1f at near frustum
-                const float distanceWeight = 0.5f;
-                var distanceScore = 1f - Mathf.Clamp((distance - _frustumNearJSON.val) / (_frustumFarJSON.val - _frustumNearJSON.val), 0f, distanceWeight);
-                // Angle affects weight from 0.5f at 20 degrees to 1f at perfect forward
-                const float angleWeight = 0.7f;
-                var angleScore = (1f - angleWeight) + (1f - (Mathf.Clamp(Vector3.Angle(lookDirection, position - eyesCenter), 0, _frustumJSON.val) / _frustumJSON.val)) * angleWeight;
-                var score = distanceScore * angleScore;
-                var probabilityWeight = o.weightJSON.val * score;
-                TryAssignBestCandidate(o, probabilityWeight, ref bestCandidate);
+                AddToCandidates(o, probabilityWeight, ref bestCandidate);
+                continue;
             }
-            else if(!ReferenceEquals(lookAtMirror, null))
+
+            if (ReferenceEquals(lookAtMirror, null))
+                continue;
+
+            var reflectedPosition = ComputeReflectedPosition(lookAtMirror, position);
+            if (TryAddCandidate(o, reflectedPosition, eyesCenter, lookDirection, out probabilityWeight))
             {
-                var reflectPosition = ComputeMirrorLookback(lookAtMirror, position);
-                #warning TODO
-                bounds = new Bounds(reflectPosition, new Vector3(0.001f, 0.001f, 0.001f));
-                var probabilityWeight = o.weightJSON.val;
-                if (probabilityWeight > float.Epsilon)
-                {
-                    TryAssignBestCandidate(o, probabilityWeight, ref bestCandidate, lookAtMirror);
-                }
+                AddToCandidates(o, probabilityWeight, ref bestCandidate, lookAtMirror);
+                // ReSharper disable once RedundantJumpStatement
+                continue;
             }
         }
 
@@ -1322,7 +1312,28 @@ public class Glance : MVRScript
             UpdateDebugDisplay();
     }
 
-    private void TryAssignBestCandidate(EyeTargetCandidate o, float probabilityWeight, ref EyeTargetCandidate bestCandidate, BoxCollider lookAtMirror = null)
+    private bool TryAddCandidate(EyeTargetCandidate o, Vector3 position, Vector3 eyesCenter, Vector3 lookDirection, out float probabilityWeight)
+    {
+        // Distance affects weight from 0.5f at far frustum to 1f at near frustum
+        const float distanceWeight = 0.5f;
+        var bounds = new Bounds(position, new Vector3(0.001f, 0.001f, 0.001f));
+        var distance = Vector3.SqrMagnitude(bounds.center - eyesCenter);
+        if (IsInAngleRange(eyesCenter, position) && GeometryUtility.TestPlanesAABB(_frustumPlanes, bounds))
+        {
+            var distanceScore = 1f - Mathf.Clamp((distance - _frustumNearJSON.val) / (_frustumFarJSON.val - _frustumNearJSON.val), 0f, distanceWeight);
+            // Angle affects weight from 0.5f at 20 degrees to 1f at perfect forward
+            const float angleWeight = 0.7f;
+            var angleScore = (1f - angleWeight) + (1f - (Mathf.Clamp(Vector3.Angle(lookDirection, position - eyesCenter), 0, _frustumJSON.val) / _frustumJSON.val)) * angleWeight;
+            var score = distanceScore * angleScore;
+            probabilityWeight = o.weightJSON.val * score;
+            return true;
+        }
+
+        probabilityWeight = 0f;
+        return false;
+    }
+
+    private void AddToCandidates(EyeTargetCandidate o, float probabilityWeight, ref EyeTargetCandidate bestCandidate, BoxCollider lookAtMirror = null)
     {
         var candidate = new EyeTargetCandidate(
             o,
