@@ -29,7 +29,9 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _playerMouthWeightJSON = new JSONStorableFloat("PlayerMouthWeight", 0.05f, 0f, 1f, true);
     private readonly JSONStorableFloat _playerHandsWeightJSON = new JSONStorableFloat("PlayerHandsWeight", 0.1f, 0f, 1f, true);
     private readonly JSONStorableFloat _windowCameraWeightJSON = new JSONStorableFloat("WindowCameraWeight", 1f, 0f, 1f, true);
-    private readonly JSONStorableFloat _selfHandsWeightJSON = new JSONStorableFloat("SelfHandsWeight", 0f, 0f, 1f, true);
+    private readonly JSONStorableFloat _selfEyesWeightJSON = new JSONStorableFloat("SelfEyesWeight", 0f, 0f, 1f, true);
+    private readonly JSONStorableFloat _selfMouthWeightJSON = new JSONStorableFloat("SelfMouthWeight", 0.8f, 0f, 1f, true);
+    private readonly JSONStorableFloat _selfHandsWeightJSON = new JSONStorableFloat("SelfHandsWeight", 0.4f, 0f, 1f, true);
     private readonly JSONStorableFloat _selfGenitalsWeightJSON = new JSONStorableFloat("SelfGenitalsWeight", 1f, 0f, 1f, true);
     private readonly JSONStorableFloat _personsEyesWeightJSON = new JSONStorableFloat("PersonsEyesWeight", 1f, 0f, 1f, true);
     private readonly JSONStorableFloat _personsMouthWeightJSON = new JSONStorableFloat("PersonsMouthWeight", 0.05f, 0f, 1f, true);
@@ -198,6 +200,8 @@ public class Glance : MVRScript
             CreateSlider(_windowCameraWeightJSON, false, "Window camera", "F4");
 
             CreateTitle("Auto targeting priorities (self)", false);
+            CreateSlider(_selfEyesWeightJSON, false, "Eyes (self / mirrors)", "F4");
+            CreateSlider(_selfMouthWeightJSON, false, "Mouth (self / mirrors)", "F4");
             CreateSlider(_selfHandsWeightJSON, false, "Hands (self)", "F4");
             CreateSlider(_selfGenitalsWeightJSON, false, "Genitals (self)", "F4");
 
@@ -265,6 +269,8 @@ public class Glance : MVRScript
             RegisterFloat(_playerMouthWeightJSON);
             RegisterFloat(_playerHandsWeightJSON);
             RegisterFloat(_windowCameraWeightJSON);
+            RegisterFloat(_selfEyesWeightJSON);
+            RegisterFloat(_selfMouthWeightJSON);
             RegisterFloat(_selfHandsWeightJSON);
             RegisterFloat(_selfGenitalsWeightJSON);
             RegisterFloat(_personsEyesWeightJSON );
@@ -312,6 +318,8 @@ public class Glance : MVRScript
             _playerMouthWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
             _playerHandsWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
             _windowCameraWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
+            _selfEyesWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
+            _selfMouthWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
             _selfHandsWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
             _selfGenitalsWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
             _personsEyesWeightJSON.setCallbackFunction = ValueChangedScheduleRescan;
@@ -478,6 +486,8 @@ public class Glance : MVRScript
         _playerMouthWeightJSON.SetValToDefault();
         _playerHandsWeightJSON.SetValToDefault();
         _windowCameraWeightJSON.SetValToDefault();
+        _selfEyesWeightJSON.SetValToDefault();
+        _selfMouthWeightJSON.SetValToDefault();
         _selfHandsWeightJSON.SetValToDefault();
         _selfGenitalsWeightJSON.SetValToDefault();
         _personsEyesWeightJSON .SetValToDefault();
@@ -763,15 +773,27 @@ public class Glance : MVRScript
                     {
                         foreach (var bone in _bones)
                         {
-                            if (bone.name == "lHand" || bone.name == "rHand")
+                            switch (bone.name)
                             {
-                                if (_selfHandsWeightJSON.val >= 0.01f)
+                                case "lEye":
+                                case "rEye":
+                                    if (_personsEyesWeightJSON.val < 0.01f) continue;
+                                    _objects.Add(new EyeTargetCandidate(bone.transform, _personsEyesWeightJSON, 0.5f));
+                                    break;
+                                case "tongue03":
+                                    if (_personsMouthWeightJSON.val < 0.01f) continue;
+                                    _objects.Add(new EyeTargetCandidate(bone.transform, _personsMouthWeightJSON));
+                                    break;
+                                case "lHand":
+                                case "rHand":
+                                    if (_selfHandsWeightJSON.val < 0.01f) continue;
                                     _objects.Add(new EyeTargetCandidate(bone.transform, _selfHandsWeightJSON));
-                            }
-                            else if (bone.name == "Gen1" || bone.name == "Gen3")
-                            {
-                                if (_selfGenitalsWeightJSON.val >= 0.01f)
+                                    break;
+                                case "Gen1":
+                                case "Gen3":
+                                    if (_selfGenitalsWeightJSON.val < 0.01f) continue;
                                     _objects.Add(new EyeTargetCandidate(bone.transform, _selfGenitalsWeightJSON, 0.5f));
+                                    break;
                             }
                         }
 
