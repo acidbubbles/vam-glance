@@ -10,7 +10,6 @@ using Random = UnityEngine.Random;
 
 public class Glance : MVRScript
 {
-    private const float _mirrorScanSpan = 0.5f;
     private const float _objectScanSpan = 0.16f;
     private const float _syncCheckSpan = 2.19f;
     private const float _validateExtremesSpan = 0.04f;
@@ -25,7 +24,7 @@ public class Glance : MVRScript
     });
 
     private readonly JSONStorableBool _disableAutoTarget = new JSONStorableBool("DisableAutoTarget", false);
-    private readonly JSONStorableBool _mirrorsJSON = new JSONStorableBool("Mirrors", false);
+    private readonly JSONStorableBool _mirrorsJSON = new JSONStorableBool("Mirrors", true);
     private readonly JSONStorableFloat _playerEyesWeightJSON = new JSONStorableFloat("PlayerEyesWeight", 1f, 0f, 1f, true);
     private readonly JSONStorableFloat _playerMouthWeightJSON = new JSONStorableFloat("PlayerMouthWeight", 0.05f, 0f, 1f, true);
     private readonly JSONStorableFloat _playerHandsWeightJSON = new JSONStorableFloat("PlayerHandsWeight", 0.1f, 0f, 1f, true);
@@ -98,12 +97,9 @@ public class Glance : MVRScript
     private readonly Plane[] _frustumPlanes = new Plane[6];
     private readonly List<EyeTargetCandidate> _lockTargetCandidates = new List<EyeTargetCandidate>();
     private float _lockTargetCandidatesScoredWeightSum;
-    private float _nextMirrorScanTime;
     private float _nextSyncCheckTime;
     private bool _windowCameraActivated;
     private bool _monitorRigActivated = true;
-    private BoxCollider _lookAtMirror;
-    private float _lookAtMirrorDistance;
     private float _nextObjectsScanTime;
     private float _nextValidateExtremesTime;
     private float _nextLockTargetTime;
@@ -185,7 +181,7 @@ public class Glance : MVRScript
 
             CreateTitle("Auto targeting", false);
             CreateToggle(_disableAutoTarget, false).label = "Only look at <i>GlanceTargets</i>";
-            CreateToggle(_mirrorsJSON, false).label = "Mirrors (look at themselves)";
+            CreateToggle(_mirrorsJSON, false).label = "Enable mirrors (look at reflections)";
 
             CreateTitle("Auto targeting priorities (you)", false);
             CreateSlider(_playerEyesWeightJSON, false, "Eyes (you)", "F4");
@@ -683,7 +679,6 @@ public class Glance : MVRScript
         _windowCameraActivated = false;
         _nextObjectsScanTime = 0f;
         _nextLockTargetTime = 0f;
-        _nextMirrorScanTime = 0f;
         _nextSyncCheckTime = Time.time + _syncCheckSpan;
         _watchedGlanceTargets.Clear();
         _monitorRigActivated = SuperController.singleton.centerCameraTarget.isActiveAndEnabled;
@@ -849,13 +844,11 @@ public class Glance : MVRScript
 
     private void ClearState()
     {
-        _lookAtMirror = null;
         _mirrorsSync = false;
         _mirrors.Clear();
         _objects.Clear();
         _lockTargetCandidates.Clear();
         _lockTargetCandidatesScoredWeightSum = 0f;
-        _nextMirrorScanTime = 0f;
         _nextSyncCheckTime = 0f;
         _nextObjectsScanTime = 0f;
         _nextValidateExtremesTime = 0f;
@@ -877,7 +870,6 @@ public class Glance : MVRScript
 
         CheckSyncNeeded();
         DetectHighAngularVelocity();
-        ScanMirrors(eyesCenter);
         ScanObjects(eyesCenter);
         InvalidateExtremes();
         SelectLockTarget();
@@ -886,12 +878,15 @@ public class Glance : MVRScript
         Vector3 lockPosition;
         if (hasTarget)
         {
-            lockPosition = _lockTarget.transform.position;
-        }
-        else if (!ReferenceEquals(_lookAtMirror, null))
-        {
-            var reflectPosition = ComputeMirrorLookback(eyesCenter);
-            lockPosition = reflectPosition;
+            if (!ReferenceEquals(_lockTarget.lookAtMirror, null))
+            {
+                var reflectPosition = ComputeMirrorLookback(_lockTarget.lookAtMirror, _lockTarget.transform.position);
+                lockPosition = reflectPosition;
+            }
+            else
+            {
+                lockPosition = _lockTarget.transform.position;
+            }
         }
         else
         {
@@ -1007,14 +1002,14 @@ public class Glance : MVRScript
         return true;
     }
 
-    private Vector3 ComputeMirrorLookback(Vector3 eyesCenter)
+    private Vector3 ComputeMirrorLookback(BoxCollider lookAtMirror, Vector3 position)
     {
-        var mirrorTransform = _lookAtMirror.transform;
+        var mirrorTransform = lookAtMirror.transform;
         var mirrorPosition = mirrorTransform.position;
         var mirrorNormal = mirrorTransform.up;
         var plane = new Plane(mirrorNormal, mirrorPosition);
-        var planePoint = plane.ClosestPointOnPlane(eyesCenter);
-        var reflectPosition = planePoint - (eyesCenter - planePoint);
+        var planePoint = plane.ClosestPointOnPlane(position);
+        var reflectPosition = planePoint - (position - planePoint);
         return reflectPosition;
     }
 
@@ -1186,6 +1181,47 @@ public class Glance : MVRScript
         //var planes = GeometryUtility.CalculateFrustumPlanes(SuperController.singleton.centerCameraTarget.targetCamera);
         CalculateFrustum(eyesCenter, lookDirection, _head.up, _frustumJSON.val * Mathf.Deg2Rad, _frustumRatioJSON.val, _frustumNearJSON.val, _frustumFarJSON.val, _frustumPlanes);
 
+        // Mirrors
+        var lookAtMirrorDistance = 0f;
+        BoxCollider lookAtMirror = null;
+        if (_mirrors.Count == 1)
+        {
+            var headPosition = _head.position;
+            lookAtMirror = _mirrors[0];
+            lookAtMirrorDistance = Vector3.Distance(headPosition, lookAtMirror.transform.position);
+        }
+        else if (_mirrors.Count > 1)
+        {
+            var headPosition = _head.position;
+            var ray = new Ray(eyesCenter, _head.forward);
+            var closestMirrorDistance = float.PositiveInfinity;
+            BoxCollider closestMirror = null;
+            for (var i = 0; i < _mirrors.Count; i++)
+            {
+                var potentialMirror = _mirrors[i];
+                var potentialMirrorDistance = Vector3.Distance(headPosition, potentialMirror.transform.position);
+                if (potentialMirrorDistance < closestMirrorDistance)
+                {
+                    closestMirrorDistance = potentialMirrorDistance;
+                    closestMirror = potentialMirror;
+                }
+
+                RaycastHit hit;
+                if (!potentialMirror.Raycast(ray, out hit, 20f))
+                    continue;
+                if (hit.distance > lookAtMirrorDistance) continue;
+                lookAtMirrorDistance = hit.distance;
+                lookAtMirror = potentialMirror;
+            }
+
+            if (ReferenceEquals(lookAtMirror, null))
+            {
+                if (ReferenceEquals(closestMirror, null)) return;
+                lookAtMirror = closestMirror;
+            }
+        }
+
+        // Objects
         var bestCandidate = new EyeTargetCandidate(null, _nullWeightJSON);
         for (var i = 0; i < _objects.Count; i++)
         {
@@ -1201,33 +1237,31 @@ public class Glance : MVRScript
                 _nextObjectsScanTime = 0f;
                 return;
             }
+
             var bounds = new Bounds(position, new Vector3(0.001f, 0.001f, 0.001f));
-            if (!GeometryUtility.TestPlanesAABB(_frustumPlanes, bounds)) continue;
             var distance = Vector3.SqrMagnitude(bounds.center - eyesCenter);
-            if (distance > _lookAtMirrorDistance) continue;
-            if (!IsInAngleRange(eyesCenter, position)) continue;
-            // Distance affects weight from 0.5f at far frustum to 1f at near frustum
-            const float distanceWeight = 0.5f;
-            var distanceScore = 1f - Mathf.Clamp((distance - _frustumNearJSON.val) / (_frustumFarJSON.val - _frustumNearJSON.val), 0f, distanceWeight);
-            // Angle affects weight from 0.5f at 20 degrees to 1f at perfect forward
-            const float angleWeight = 0.7f;
-            var angleScore = (1f - angleWeight) + (1f - (Mathf.Clamp(Vector3.Angle(lookDirection, position - eyesCenter), 0, _frustumJSON.val) / _frustumJSON.val)) * angleWeight;
-            var score = distanceScore * angleScore;
-            var probabilityWeight = o.weightJSON.val * score;
-            var candidate = new EyeTargetCandidate(
-                o,
-                probabilityWeight
-            );
-            _lockTargetCandidates.Add(candidate);
-            _lockTargetCandidatesScoredWeightSum += probabilityWeight;
-            if (o.weightJSON.val > bestCandidate.weightJSON.val)
+            if (distance < lookAtMirrorDistance && IsInAngleRange(eyesCenter, position) && GeometryUtility.TestPlanesAABB(_frustumPlanes, bounds))
             {
-                bestCandidate = candidate;
+                // Distance affects weight from 0.5f at far frustum to 1f at near frustum
+                const float distanceWeight = 0.5f;
+                var distanceScore = 1f - Mathf.Clamp((distance - _frustumNearJSON.val) / (_frustumFarJSON.val - _frustumNearJSON.val), 0f, distanceWeight);
+                // Angle affects weight from 0.5f at 20 degrees to 1f at perfect forward
+                const float angleWeight = 0.7f;
+                var angleScore = (1f - angleWeight) + (1f - (Mathf.Clamp(Vector3.Angle(lookDirection, position - eyesCenter), 0, _frustumJSON.val) / _frustumJSON.val)) * angleWeight;
+                var score = distanceScore * angleScore;
+                var probabilityWeight = o.weightJSON.val * score;
+                TryAssignBestCandidate(o, probabilityWeight, ref bestCandidate);
             }
-            // ReSharper disable once CompareOfFloatsByEqualityOperator
-            else if (o.weightJSON.val == bestCandidate.weightJSON.val && o.scoredWeight > bestCandidate.scoredWeight)
+            else if(!ReferenceEquals(lookAtMirror, null))
             {
-                bestCandidate = candidate;
+                var reflectPosition = ComputeMirrorLookback(lookAtMirror, position);
+                #warning TODO
+                bounds = new Bounds(reflectPosition, new Vector3(0.001f, 0.001f, 0.001f));
+                var probabilityWeight = o.weightJSON.val;
+                if (probabilityWeight > float.Epsilon)
+                {
+                    TryAssignBestCandidate(o, probabilityWeight, ref bestCandidate, lookAtMirror);
+                }
             }
         }
 
@@ -1288,62 +1322,32 @@ public class Glance : MVRScript
             UpdateDebugDisplay();
     }
 
+    private void TryAssignBestCandidate(EyeTargetCandidate o, float probabilityWeight, ref EyeTargetCandidate bestCandidate, BoxCollider lookAtMirror = null)
+    {
+        var candidate = new EyeTargetCandidate(
+            o,
+            probabilityWeight,
+            lookAtMirror
+        );
+        _lockTargetCandidates.Add(candidate);
+        _lockTargetCandidatesScoredWeightSum += probabilityWeight;
+        if (o.weightJSON.val > bestCandidate.weightJSON.val)
+        {
+            bestCandidate = candidate;
+        }
+        // ReSharper disable once CompareOfFloatsByEqualityOperator
+        else if (o.weightJSON.val == bestCandidate.weightJSON.val && o.scoredWeight > bestCandidate.scoredWeight)
+        {
+            bestCandidate = candidate;
+        }
+    }
+
     private void FocusOnPlayer()
     {
         _nextObjectsScanTime = Time.time + _lockMaxDurationJSON.val;
         _nextSaccadeTime = Time.time + _saccadeMaxDurationJSON.val;
-        _nextMirrorScanTime = Time.time + _lockMaxDurationJSON.val;
         _nextValidateExtremesTime = Time.time + _lockMaxDurationJSON.val;
         _lockTarget = new EyeTargetCandidate(SuperController.singleton.centerCameraTarget.transform, _nullWeightJSON);
-        _lookAtMirror = null;
-    }
-
-    private void ScanMirrors(Vector3 eyesCenter)
-    {
-        if (_nextMirrorScanTime > Time.time) return;
-        _nextMirrorScanTime = Time.time + _mirrorScanSpan;
-
-        _lookAtMirror = null;
-        _lookAtMirrorDistance = float.PositiveInfinity;
-
-        if (_mirrors.Count <= 0)
-            return;
-
-        var headPosition = _head.position;
-
-        if (_mirrors.Count == 1)
-        {
-            _lookAtMirror = _mirrors[0];
-            _lookAtMirrorDistance = Vector3.Distance(headPosition, _lookAtMirror.transform.position);
-            return;
-        }
-
-        var ray = new Ray(eyesCenter, _head.forward);
-        var closestMirrorDistance = float.PositiveInfinity;
-        BoxCollider closestMirror = null;
-        for (var i = 0; i < _mirrors.Count; i++)
-        {
-            var potentialMirror = _mirrors[i];
-            var potentialMirrorDistance = Vector3.Distance(headPosition, potentialMirror.transform.position);
-            if (potentialMirrorDistance < closestMirrorDistance)
-            {
-                closestMirrorDistance = potentialMirrorDistance;
-                closestMirror = potentialMirror;
-            }
-
-            RaycastHit hit;
-            if (!potentialMirror.Raycast(ray, out hit, 20f))
-                continue;
-            if (hit.distance > _lookAtMirrorDistance) continue;
-            _lookAtMirrorDistance = hit.distance;
-            _lookAtMirror = potentialMirror;
-        }
-
-        if (ReferenceEquals(_lookAtMirror, null))
-        {
-            if (ReferenceEquals(closestMirror, null)) return;
-            _lookAtMirror = closestMirror;
-        }
     }
 
     // Source: http://answers.unity.com/answers/1024526/view.html
@@ -1437,6 +1441,7 @@ public class Glance : MVRScript
         public readonly JSONStorableFloat weightJSON;
         public readonly float ratio;
         public readonly float scoredWeight;
+        public readonly BoxCollider lookAtMirror;
 
         public EyeTargetCandidate(Transform transform, JSONStorableFloat weightJSON, float ratio = 1f)
         {
@@ -1444,14 +1449,16 @@ public class Glance : MVRScript
             this.weightJSON = weightJSON;
             this.ratio = ratio;
             scoredWeight = 0f;
+            lookAtMirror = null;
         }
 
-        public EyeTargetCandidate(EyeTargetCandidate source, float scoredWeight)
+        public EyeTargetCandidate(EyeTargetCandidate source, float scoredWeight, BoxCollider lookAtMirror)
         {
             transform = source.transform;
             weightJSON = source.weightJSON;
             ratio = source.ratio;
             this.scoredWeight = scoredWeight;
+            this.lookAtMirror = lookAtMirror;
         }
     }
 
