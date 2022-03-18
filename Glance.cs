@@ -354,7 +354,7 @@ public class Glance : MVRScript
             _objectsInViewChangedCooldownJSON.setCallbackFunction = _ => { _objectsInViewChangedExpire = 0f; };
             _preventUnnaturalEyeAngle.setCallbackFunction = ValueChangedScheduleRescan;
             // ReSharper disable once Unity.InefficientPropertyAccess
-            _useEyeTargetControl.setCallbackFunction = val => { if(!enabled) return; enabled = false; enabled = true; };
+            _useEyeTargetControl.setCallbackFunction = val => { SyncUseEyeTargetControl(); };
             _debugJSON.setCallbackFunction = SyncDebug;
 
             SuperController.singleton.StartCoroutine(DeferredInit());
@@ -604,23 +604,10 @@ public class Glance : MVRScript
 
             _eyeBehaviorRestoreLookMode = _eyeBehavior.currentLookMode;
 
-            if (!_useEyeTargetControl.val)
-            {
-                _glanceEyeTarget = new GameObject("GlanceEyeTarget").transform;
-                _eyeBehavior.currentLookMode = EyesControl.LookMode.Custom;
-                _eyeBehavior.lookAt1.target = _glanceEyeTarget;
-                _eyeBehavior.lookAt2.target = _glanceEyeTarget;
-            }
-            else
-            {
-                _eyeTargetRestorePosition = _eyeTarget.control.position;
-                _eyeTargetRestoreHidden = _eyeTarget.hidden;
-                _eyeTarget.hidden = true;
-                _eyeBehavior.currentLookMode = EyesControl.LookMode.Target;
-            }
-
             _blinkRestoreEnabled = _eyelidBehavior.GetBoolParamValue("blinkEnabled");
             _eyelidBehavior.SetBoolParamValue("blinkEnabled", true);
+
+            SyncUseEyeTargetControl();
 
             SuperController.singleton.onAtomUIDsChangedHandlers += ONAtomUIDsChanged;
 
@@ -633,11 +620,51 @@ public class Glance : MVRScript
         }
     }
 
+    private void SyncUseEyeTargetControl()
+    {
+        if (!_ready || !_initCalled) return;
+
+        RestoreUseEyeTargetControl();
+
+        if (_useEyeTargetControl.val)
+        {
+            _eyeTargetRestorePosition = _eyeTarget.control.position;
+            _eyeTargetRestoreHidden = _eyeTarget.hidden;
+            _eyeTarget.hidden = true;
+            _eyeBehavior.currentLookMode = EyesControl.LookMode.Target;
+        }
+        else
+        {
+            _glanceEyeTarget = new GameObject("GlanceEyeTarget").transform;
+            _eyeBehavior.currentLookMode = EyesControl.LookMode.Custom;
+            _eyeBehavior.lookAt1.target = _glanceEyeTarget;
+            _eyeBehavior.lookAt2.target = _glanceEyeTarget;
+        }
+    }
+
+    private void RestoreUseEyeTargetControl()
+    {
+        if (_glanceEyeTarget != null)
+        {
+            _eyeBehavior.lookAt1.target = null;
+            _eyeBehavior.lookAt2.target = null;
+            Destroy(_glanceEyeTarget.gameObject);
+            _glanceEyeTarget = null;
+        }
+        if (_eyeTarget != null)
+        {
+            _eyeTarget.hidden = _eyeTargetRestoreHidden;
+            _eyeTarget.control.position = _eyeTargetRestorePosition;
+        }
+    }
+
     public void OnDisable()
     {
         try
         {
             _debugJSON.val = false;
+
+            SuperController.singleton.onAtomUIDsChangedHandlers -= ONAtomUIDsChanged;
 
             if (_mainCameraFaceRig?.owner != null)
             {
@@ -651,20 +678,7 @@ public class Glance : MVRScript
                 _windowCameraFaceRig = null;
             }
 
-            SuperController.singleton.onAtomUIDsChangedHandlers -= ONAtomUIDsChanged;
-
-            if (_glanceEyeTarget != null)
-            {
-                Destroy(_glanceEyeTarget.gameObject);
-                _glanceEyeTarget = null;
-                _eyeBehavior.lookAt1.target = null;
-                _eyeBehavior.lookAt2.target = null;
-            }
-            else if (_eyeTarget != null)
-            {
-                _eyeTarget.hidden = _eyeTargetRestoreHidden;
-                _eyeTarget.control.position = _eyeTargetRestorePosition;
-            }
+            RestoreUseEyeTargetControl();
 
             if (_eyeBehavior != null)
             {
