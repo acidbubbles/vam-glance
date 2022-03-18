@@ -138,6 +138,7 @@ public class Glance : MVRScript
 
         if (containingAtom.type != "Person")
         {
+            SuperController.LogError($"Glance: Atom {(containingAtom != null ? containingAtom.name : "?")} is not a Person atom.");
             enabled = false;
             return;
         }
