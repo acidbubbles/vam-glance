@@ -72,6 +72,7 @@ public class Glance : MVRScript
     private readonly JSONStorableBool _preventUnnaturalEyeAngle = new JSONStorableBool("PreventUnnaturalEyeAngle", true);
     private readonly JSONStorableFloat _eyePitchAngleLimitJSON = new JSONStorableFloat("EyePitchAngleLimit", 30f, 0f, 90f, false);
     private readonly JSONStorableFloat _eyeYawAngleLimitJSON   = new JSONStorableFloat("EyeYawAngleLimit",   26f, 0f, 90f, false);
+    private readonly JSONStorableFloat _antiCrosseyeDistanceJSON   = new JSONStorableFloat("AntiCrosseyeDistance", 0.2f, 0f, 1f, false);
     private readonly JSONStorableBool _useEyeTargetControl = new JSONStorableBool("UseEyeTargetControl", false);
     private readonly JSONStorableBool _debugJSON = new JSONStorableBool("Debug", false);
     private readonly JSONStorableBool   _debugTargetsJSON  = new JSONStorableBool("DebugTargets", false);
@@ -281,6 +282,7 @@ public class Glance : MVRScript
             CreateToggle(_preventUnnaturalEyeAngle, true).label = "Prevent unnatural eye angle";
             CreateSlider(_eyePitchAngleLimitJSON, true, "Eye Pitch Angle Limit");
             CreateSlider(_eyeYawAngleLimitJSON,   true, "Eye Yaw Angle Limit");
+            CreateSlider(_antiCrosseyeDistanceJSON, true, "Anti Crosseye Distance");
             CreateToggle(_useEyeTargetControl, true).label = "Use eyeTargetControl";
 
             RegisterStringChooser(presetsJSON);
@@ -334,6 +336,7 @@ public class Glance : MVRScript
             RegisterBool(_preventUnnaturalEyeAngle);
             RegisterFloat(_eyePitchAngleLimitJSON);
             RegisterFloat(_eyeYawAngleLimitJSON);
+            RegisterFloat(_antiCrosseyeDistanceJSON);
             RegisterBool(_useEyeTargetControl);
             RegisterAction(new JSONStorableAction("FocusOnPlayer", FocusOnPlayer));
             RegisterAction(new JSONStorableAction("Refocus", Refocus));
@@ -549,7 +552,8 @@ public class Glance : MVRScript
         _blinkTimeMinJSON.SetValToDefault();
         _blinkTimeMaxJSON.SetValToDefault();
         _eyePitchAngleLimitJSON.SetValToDefault();
-        _eyeYawAngleLimitJSON.SetValToDefault();        
+        _eyeYawAngleLimitJSON.SetValToDefault();
+        _antiCrosseyeDistanceJSON.SetValToDefault();
     }
 
     private void CreateSlider(JSONStorableFloat jsf, bool right, string label, string valueFormat = "F2")
@@ -1027,7 +1031,8 @@ public class Glance : MVRScript
         SelectSaccade();
         if (_closeEyesJSON.val < 0.75f) // don't look at things while eyes are closed (causes eyelids to behave weird)
         {
-	        var finalPosition = lockPosition + _saccadeOffset;
+	        var finalPosition = PreventCrosseye(lockPosition + _saccadeOffset, eyesCenter);
+
 	        if(!ReferenceEquals(_glanceEyeTarget, null))
 	            _glanceEyeTarget.position = finalPosition;
 	        else
@@ -1251,6 +1256,14 @@ public class Glance : MVRScript
 
         if (_debugJSON.val && UITransform.gameObject.activeInHierarchy)
             UpdateDebugDisplay();
+    }
+
+    private Vector3 PreventCrosseye(Vector3 target, Vector3 eyeCenter)
+    {
+        // calculate distance from eye center to target, and simply extend that vector if too close
+        var eyeToTarget          = target - eyeCenter;
+        var antiCrosseyeDistance = Mathf.Max(_antiCrosseyeDistanceJSON.val, eyeToTarget.magnitude);
+        return eyeCenter + eyeToTarget.normalized * antiCrosseyeDistance;
     }
 
     private void UpdateDebugDisplay()
