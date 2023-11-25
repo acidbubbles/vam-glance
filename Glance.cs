@@ -71,6 +71,8 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _cameraEyesDistanceJSON = new JSONStorableFloat("CameraEyesDistance", 0.015f, 0f, 0.1f, false);
     private readonly JSONStorableFloat _objectsInViewChangedCooldownJSON = new JSONStorableFloat("ObjectsInViewChangedCooldown", 0.5f, 0f, 10f, false);
     private readonly JSONStorableBool _preventUnnaturalEyeAngle = new JSONStorableBool("PreventUnnaturalEyeAngle", true);
+    private readonly JSONStorableFloat _eyePitchAngleLimitJSON = new JSONStorableFloat("EyePitchAngleLimit", 30f, 0f, 90f, false);
+    private readonly JSONStorableFloat _eyeYawAngleLimitJSON   = new JSONStorableFloat("EyeYawAngleLimit",   26f, 0f, 90f, false);
     private readonly JSONStorableBool _useEyeTargetControl = new JSONStorableBool("UseEyeTargetControl", false);
     private readonly JSONStorableBool _debugJSON = new JSONStorableBool("Debug", false);
     private readonly JSONStorableBool   _debugTargetsJSON  = new JSONStorableBool("DebugTargets", false);
@@ -276,6 +278,8 @@ public class Glance : MVRScript
             CreateTitle("Other settings", true);
             CreateSlider(_objectsInViewChangedCooldownJSON, true, "Objects in view changed cooldown", "F4");
             CreateToggle(_preventUnnaturalEyeAngle, true).label = "Prevent unnatural eye angle";
+            CreateSlider(_eyePitchAngleLimitJSON, true, "Eye Pitch Angle Limit");
+            CreateSlider(_eyeYawAngleLimitJSON,   true, "Eye Yaw Angle Limit");
             CreateToggle(_useEyeTargetControl, true).label = "Use eyeTargetControl";
 
             RegisterStringChooser(presetsJSON);
@@ -327,6 +331,8 @@ public class Glance : MVRScript
             RegisterFloat(_cameraEyesDistanceJSON);
             RegisterFloat(_objectsInViewChangedCooldownJSON);
             RegisterBool(_preventUnnaturalEyeAngle);
+            RegisterFloat(_eyePitchAngleLimitJSON);
+            RegisterFloat(_eyeYawAngleLimitJSON);
             RegisterBool(_useEyeTargetControl);
             RegisterAction(new JSONStorableAction("FocusOnPlayer", FocusOnPlayer));
 
@@ -538,6 +544,8 @@ public class Glance : MVRScript
         _blinkSpaceMaxJSON.SetValToDefault();
         _blinkTimeMinJSON.SetValToDefault();
         _blinkTimeMaxJSON.SetValToDefault();
+        _eyePitchAngleLimitJSON.SetValToDefault();
+        _eyeYawAngleLimitJSON.SetValToDefault();        
     }
 
     private void CreateSlider(JSONStorableFloat jsf, bool right, string label, string valueFormat = "F2")
@@ -1092,9 +1100,9 @@ public class Glance : MVRScript
         if (!_preventUnnaturalEyeAngle.val) return true;
         var lookAngle = _head.InverseTransformDirection(targetPosition - eyesCenter);
         var yaw = Vector3.Angle(Vector3.ProjectOnPlane(lookAngle, Vector3.up), Vector3.forward);
-        if (yaw > 26) return false;
+        if (yaw > _eyeYawAngleLimitJSON.val) return false;
         var pitch = Vector3.Angle(Vector3.ProjectOnPlane(lookAngle, Vector3.right), Vector3.forward);
-        if (pitch > 30) return false;
+        if (pitch > _eyePitchAngleLimitJSON.val) return false;
         return true;
     }
 
