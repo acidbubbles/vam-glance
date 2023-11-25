@@ -132,6 +132,7 @@ public class Glance : MVRScript
     private JSONStorableBool _windowCameraControl;
     private readonly List<GlanceTargetReference> _watchedGlanceTargets = new List<GlanceTargetReference>();
     private Transform _glanceEyeTarget;
+    private UIDynamicToggle _debugTargetsToggle;
     private UIDynamicTextField _debugDisplayField;
 
     public Glance()
@@ -186,8 +187,9 @@ public class Glance : MVRScript
 
             CreateTitle("Diagnostic", false);
             CreateToggle(_debugJSON).label = "Show viewing area";
-            CreateToggle(_debugTargetsJSON).label = "Show targets";
-            _debugDisplayField = CreateTextField(_debugDisplayJSON);
+            _debugTargetsToggle = CreateToggle(_debugTargetsJSON);
+            _debugTargetsToggle.label = "Show targets";
+            _debugDisplayField  = CreateTextField(_debugDisplayJSON);
 
             CreateTitle("Presets", false);
             var presetsJSON = new JSONStorableStringChooser("Presets", new List<string>
@@ -395,6 +397,8 @@ public class Glance : MVRScript
     {
         base.InitUI();
 
+        if (_debugTargetsToggle != null)
+            _debugTargetsToggle.gameObject.SetActive(false);
         if (_debugDisplayField != null)
             _debugDisplayField.gameObject.SetActive(false);
     }
@@ -557,6 +561,7 @@ public class Glance : MVRScript
 
     private void SyncDebug(bool val)
     {
+        _debugTargetsToggle.gameObject.SetActive(val);
         _debugDisplayField.gameObject.SetActive(val);
 
         if (!val)
