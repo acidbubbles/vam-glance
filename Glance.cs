@@ -1500,10 +1500,11 @@ public class Glance : MVRScript
 
     private void FocusOnPlayer()
     {
-        _nextObjectsScanTime = Time.time + _lockMaxDurationJSON.val;
-        _nextSaccadeTime = Time.time + _saccadeMaxDurationJSON.val;
+        _nextLockTargetTime       = Time.time + _lockMaxDurationJSON.val;
+        _nextObjectsScanTime      = Time.time + _lockMaxDurationJSON.val;
+        _nextSaccadeTime          = Time.time + _saccadeMaxDurationJSON.val;
         _nextValidateExtremesTime = Time.time + _lockMaxDurationJSON.val;
-        _lockTarget = new EyeTargetCandidate(SuperController.singleton.centerCameraTarget.transform, 0);
+        _lockTarget = new EyeTargetCandidate(SuperController.singleton.centerCameraTarget.transform, 1);
     }
 
     public void Refocus() // needs to be public as GlanceTarget is sending this message
