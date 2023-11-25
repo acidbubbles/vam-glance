@@ -337,6 +337,7 @@ public class Glance : MVRScript
             RegisterFloat(_eyeYawAngleLimitJSON);
             RegisterBool(_useEyeTargetControl);
             RegisterAction(new JSONStorableAction("FocusOnPlayer", FocusOnPlayer));
+            RegisterAction(new JSONStorableAction("Refocus", Refocus));
 
             _disableAutoTarget.setCallbackFunction = ValueChangedScheduleRescan;
             _mirrorsJSON.setCallbackFunction = ValueChangedScheduleRescan;
@@ -1475,6 +1476,11 @@ public class Glance : MVRScript
         _lockTarget = new EyeTargetCandidate(SuperController.singleton.centerCameraTarget.transform, _nullWeightJSON);
     }
 
+    private void Refocus()
+    {
+        _needRescan = true;
+    }
+    
     // Source: http://answers.unity.com/answers/1024526/view.html
     private void CalculateFrustum(Vector3 origin, Vector3 direction, Vector3 up, float fovRadians, float viewRatio, float near, float far, Plane[] frustumPlanes)
     {
