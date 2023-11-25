@@ -73,6 +73,7 @@ public class Glance : MVRScript
     private readonly JSONStorableBool _preventUnnaturalEyeAngle = new JSONStorableBool("PreventUnnaturalEyeAngle", true);
     private readonly JSONStorableBool _useEyeTargetControl = new JSONStorableBool("UseEyeTargetControl", false);
     private readonly JSONStorableBool _debugJSON = new JSONStorableBool("Debug", false);
+    private readonly JSONStorableBool   _debugTargetsJSON  = new JSONStorableBool("DebugTargets", false);
     private readonly JSONStorableString _debugDisplayJSON = new JSONStorableString("DebugDisplay", "");
 
     private bool _ready;
@@ -183,6 +184,7 @@ public class Glance : MVRScript
 
             CreateTitle("Diagnostic", false);
             CreateToggle(_debugJSON).label = "Show viewing area";
+            CreateToggle(_debugTargetsJSON).label = "Show targets";
             _debugDisplayField = CreateTextField(_debugDisplayJSON);
 
             CreateTitle("Presets", false);
@@ -1239,12 +1241,13 @@ public class Glance : MVRScript
             _debugDisplaySb.AppendLine("Not locked on a target.");
         }
 
-        /*
-        foreach (var o in _lockTargetCandidates)
+        if (_debugTargetsJSON.val)
         {
-            _debugDisplaySb.AppendLine($"Object: {o.transform.name} {o.weight * 100f:0.00}%");
+	        foreach (var o in _lockTargetCandidates)
+	        {
+	            _debugDisplaySb.AppendLine($"Object: {o.transform.name} {o.weightJSON.val * 100f:0.00}%");
+	        }
         }
-        */
 
         _debugDisplayJSON.val = _debugDisplaySb.ToString();
         _debugDisplaySb.Length = 0;
