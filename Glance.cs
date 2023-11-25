@@ -1416,10 +1416,11 @@ public class Glance : MVRScript
                 if (_lockTargetCandidates.Count > previousLockTargetCount)
                 {
                     // A better target entered view
-                    // ReSharper disable once CompareOfFloatsByEqualityOperator
-                    if (ReferenceEquals(_lockTarget.transform, null) || bestCandidate.transform != _lockTarget.transform &&
-                        (bestCandidate.weight > _lockTarget.weight ||
-                         bestCandidate.weight == _lockTarget.weight && bestCandidate.scoredWeight > _lockTarget.scoredWeight))
+                    if ((ReferenceEquals(_lockTarget.transform, null) || (bestCandidate.transform != _lockTarget.transform)) &&
+                        ((bestCandidate.weight > _lockTarget.weight) ||
+                         (Mathf.Approximately(bestCandidate.weight, _lockTarget.weight) && (bestCandidate.scoredWeight > _lockTarget.scoredWeight))
+                        )
+                       )
                     {
                         _objectsInViewChangedExpire = Time.time + _objectsInViewChangedCooldownJSON.val;
                         _lockTarget = bestCandidate;
@@ -1491,8 +1492,7 @@ public class Glance : MVRScript
         {
             bestCandidate = candidate;
         }
-        // ReSharper disable once CompareOfFloatsByEqualityOperator
-        else if (o.weight == bestCandidate.weight && o.scoredWeight > bestCandidate.scoredWeight)
+        else if (Mathf.Approximately(o.weight, bestCandidate.weight) && (o.scoredWeight > bestCandidate.scoredWeight))
         {
             bestCandidate = candidate;
         }
