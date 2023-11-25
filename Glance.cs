@@ -64,6 +64,8 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _blinkSpaceMaxJSON = new JSONStorableFloat("BlinkSpaceMax", 7f, 0f, 10f, false);
     private readonly JSONStorableFloat _blinkTimeMinJSON = new JSONStorableFloat("BlinkTimeMin", 0.1f, 0f, 2f, false);
     private readonly JSONStorableFloat _blinkTimeMaxJSON = new JSONStorableFloat("BlinkTimeMax", 0.4f, 0f, 2f, false);
+    private readonly JSONStorableFloat _closeEyesJSON = new JSONStorableFloat("CloseEyes", 0f, 0f, 1f, false) { isStorable = false, isRestorable = false};
+    private readonly JSONStorableFloat _closeEyesMorphMaxJSON = new JSONStorableFloat("CloseEyesMorphMax", 1f, 0f, 1f, false);
     private readonly JSONStorableAction _blinkNowJSON;
     private readonly JSONStorableFloat _cameraMouthDistanceJSON = new JSONStorableFloat("CameraMouthDistance", 0.053f, 0f, 0.1f, false);
     private readonly JSONStorableFloat _cameraEyesDistanceJSON = new JSONStorableFloat("CameraEyesDistance", 0.015f, 0f, 0.1f, false);
@@ -80,6 +82,7 @@ public class Glance : MVRScript
     private DAZBone[] _bones;
     private EyesControl _eyeBehavior;
     private DAZMeshEyelidControl _eyelidBehavior;
+    private DAZMorph morphEyesClosed;
     private Transform _head;
     private FreeControllerV3 _headControl;
     private Transform _lEye;
@@ -107,7 +110,8 @@ public class Glance : MVRScript
     private float _nextObjectsScanTime;
     private float _nextValidateExtremesTime;
     private float _nextLockTargetTime;
-    private EyeTargetCandidate _lockTarget = new EyeTargetCandidate(null, _nullWeightJSON);
+    private static EyeTargetCandidate _nullEyeTarget = new EyeTargetCandidate(null, _nullWeightJSON);
+    private EyeTargetCandidate _lockTarget = _nullEyeTarget;
     private float _nextSaccadeTime;
     private Vector3 _saccadeOffset;
     private float _nextGazeTime;
@@ -171,6 +175,11 @@ public class Glance : MVRScript
             // ReSharper disable once Unity.NoNullPropagation
             _windowCameraControl =  _windowCamera?.GetStorableByID("CameraControl")?.GetBoolJSONParam("cameraOn");
             _blinkEnabledJSON.valNoCallback = _eyelidBehavior.GetBoolParamValue("blinkEnabled");
+
+            JSONStorable               geometry     = containingAtom.GetStorableByID("geometry");
+            DAZCharacterSelector       character    = geometry as DAZCharacterSelector;
+            GenerateDAZMorphsControlUI morphControl = character.morphsControlUI;
+            morphEyesClosed = morphControl.GetMorphByDisplayName("Eyes Closed");
 
             CreateTitle("Diagnostic", false);
             CreateToggle(_debugJSON).label = "Show viewing area";
@@ -254,6 +263,10 @@ public class Glance : MVRScript
             CreateSlider(_blinkTimeMaxJSON, true, "Blink time max", "F4");
             _blinkNowJSON.button = CreateButton("Blink now", true).button;
 
+            CreateTitle("Close Eyes", true);
+            CreateSlider(_closeEyesMorphMaxJSON, true, "Close Eyes Morph Max", "F3");
+            CreateSlider(_closeEyesJSON, true, "Close Eyes", "F3");
+
             CreateTitle("Player eyes and mouth", true);
             CreateSlider(_cameraMouthDistanceJSON, true, "Camera mouth distance", "F4");
             CreateSlider(_cameraEyesDistanceJSON, true, "Camera eyes distance", "F4");
@@ -306,6 +319,8 @@ public class Glance : MVRScript
             RegisterFloat(_blinkTimeMinJSON);
             RegisterFloat(_blinkTimeMaxJSON);
             RegisterAction(_blinkNowJSON);
+            RegisterFloat(_closeEyesJSON);
+            RegisterFloat(_closeEyesMorphMaxJSON);
             RegisterFloat(_cameraMouthDistanceJSON);
             RegisterFloat(_cameraEyesDistanceJSON);
             RegisterFloat(_objectsInViewChangedCooldownJSON);
@@ -349,6 +364,8 @@ public class Glance : MVRScript
             _blinkSpaceMaxJSON.setCallbackFunction = val => { _blinkSpaceMinJSON.valNoCallback = Mathf.Min(val, _blinkSpaceMinJSON.val); _eyelidBehavior.blinkSpaceMax = val; };
             _blinkTimeMinJSON.setCallbackFunction = val => { _blinkTimeMaxJSON.valNoCallback = Mathf.Max(val, _blinkTimeMaxJSON.val); _eyelidBehavior.blinkTimeMin = val; };
             _blinkTimeMaxJSON.setCallbackFunction = val => { _blinkTimeMinJSON.valNoCallback = Mathf.Min(val, _blinkTimeMinJSON.val); _eyelidBehavior.blinkTimeMax = val; };
+            _closeEyesJSON.setCallbackFunction = OnCloseEyes;
+            _closeEyesMorphMaxJSON.setCallbackFunction = OnCloseEyes;
             _cameraMouthDistanceJSON.setCallbackFunction = val => { _mainCameraFaceRig?.UpdateMouth(val); _windowCameraFaceRig?.UpdateMouth(val); };
             _cameraEyesDistanceJSON.setCallbackFunction = val => { _mainCameraFaceRig?.UpdateEyes(val); _windowCameraFaceRig?.UpdateEyes(val); };
             _objectsInViewChangedCooldownJSON.setCallbackFunction = _ => { _objectsInViewChangedExpire = 0f; };
@@ -924,11 +941,19 @@ public class Glance : MVRScript
 
         var eyesCenter = (_lEye.position + _rEye.position) / 2f;
 
-        CheckSyncNeeded();
-        DetectHighAngularVelocity();
-        ScanObjects(eyesCenter);
-        InvalidateExtremes();
-        SelectLockTarget();
+        if (_closeEyesJSON.val < 0.75) // only change gaze when at least 25% open
+        {
+            CheckSyncNeeded();
+            DetectHighAngularVelocity();
+            ScanObjects(eyesCenter);
+            InvalidateExtremes();
+            SelectLockTarget();
+        }
+        else
+        {
+            // eyes closed > look at nothing
+            _lockTarget = _nullEyeTarget;
+        }
 
         var hasTarget = !ReferenceEquals(_lockTarget.transform, null);
         Vector3 lockPosition;
@@ -951,11 +976,14 @@ public class Glance : MVRScript
         }
 
         SelectSaccade();
-        var finalPosition = lockPosition + _saccadeOffset;
-        if(!ReferenceEquals(_glanceEyeTarget, null))
-            _glanceEyeTarget.position = finalPosition;
-        else
-            _eyeTarget.control.position = finalPosition;
+        if (_closeEyesJSON.val < 0.75f) // don't look at things while eyes are closed (causes eyelids to behave weird)
+        {
+	        var finalPosition = lockPosition + _saccadeOffset;
+	        if(!ReferenceEquals(_glanceEyeTarget, null))
+	            _glanceEyeTarget.position = finalPosition;
+	        else
+	            _eyeTarget.control.position = finalPosition;
+        }
 
         if (_lockLinePoints != null)
         {
@@ -967,6 +995,16 @@ public class Glance : MVRScript
         }
 
         if (!_eyeTarget.hidden) _eyeTarget.hidden = true;
+    }
+
+    private void OnCloseEyes(float _)
+    {
+        if (morphEyesClosed != null)
+        {
+            float _effectiveClose      = _closeEyesJSON.val * _closeEyesMorphMaxJSON.val;
+            morphEyesClosed.morphValue = _effectiveClose;
+            _blinkEnabledJSON.val      = _effectiveClose < 0.25; // no more blink when eyes more than 25% closed
+        }
     }
 
     private void CheckSyncNeeded()
@@ -1098,11 +1136,15 @@ public class Glance : MVRScript
             var nextTime = Time.time + _quickTurnCooldownJSON.val;
             if (_angularVelocityBurstCooldown < Time.time)
             {
-                _eyelidBehavior.Blink();
+                if (_blinkEnabledJSON.val)
+                { 
+                    // only blink if enabled
+	                _eyelidBehavior.Blink();
+                }
                 _angularVelocityBurstCooldown = nextTime;
             }
 
-            _lockTarget = new EyeTargetCandidate(null, _nullWeightJSON);
+            _lockTarget = _nullEyeTarget;
             // Rescan projected direction immediately
             _nextObjectsScanTime = 0f;
             _nextLockTargetTime = 0f;
@@ -1134,7 +1176,7 @@ public class Glance : MVRScript
 
         if (_lockTargetCandidates.Count == 0)
         {
-            _lockTarget = new EyeTargetCandidate(null, _nullWeightJSON);
+            _lockTarget = _nullEyeTarget;
             _nextLockTargetTime = float.PositiveInfinity;
         }
         else if(_lockTargetCandidates.Count == 1)
@@ -1145,7 +1187,7 @@ public class Glance : MVRScript
         else
         {
             var lockRoll = Random.Range(0f, _lockTargetCandidatesScoredWeightSum);
-            var lockTarget = new EyeTargetCandidate(null, _nullWeightJSON);
+            var lockTarget = _nullEyeTarget;
             var sum = 0f;
             for (var i = 0; i < _lockTargetCandidates.Count; i++)
             {
@@ -1276,7 +1318,7 @@ public class Glance : MVRScript
         }
 
         // Objects
-        var bestCandidate = new EyeTargetCandidate(null, _nullWeightJSON);
+        var bestCandidate = _nullEyeTarget;
         for (var i = 0; i < _objects.Count; i++)
         {
             var o = _objects[i];
@@ -1359,7 +1401,7 @@ public class Glance : MVRScript
         {
             if (!ReferenceEquals(_lockTarget.transform, null))
                 _nextGazeTime = 0f;
-            _lockTarget = new EyeTargetCandidate(null, _nullWeightJSON);
+            _lockTarget = _nullEyeTarget;
             _nextLockTargetTime = float.PositiveInfinity;
             SetLineColor(_frustumLineRenderer, Color.gray);
         }
