@@ -22,8 +22,8 @@ public class Glance : MVRScript
         "ReflectiveWoodPanel",
     });
 
-    private readonly JSONStorableBool _disableAutoTarget = new JSONStorableBool("DisableAutoTarget", false);
-    private readonly JSONStorableBool _mirrorsJSON = new JSONStorableBool("Mirrors", true);
+    private readonly JSONStorableBool  _disableAutoTarget = new JSONStorableBool("DisableAutoTarget", false);
+    private readonly JSONStorableBool  _mirrorsJSON = new JSONStorableBool("Mirrors", true);
     private readonly JSONStorableFloat _playerEyesWeightJSON = new JSONStorableFloat("PlayerEyesWeight", 1f, 0f, 1f, true);
     private readonly JSONStorableFloat _playerMouthWeightJSON = new JSONStorableFloat("PlayerMouthWeight", 0.05f, 0f, 1f, true);
     private readonly JSONStorableFloat _playerHandsWeightJSON = new JSONStorableFloat("PlayerHandsWeight", 0.1f, 0f, 1f, true);
@@ -65,19 +65,20 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _blinkTimeMaxJSON = new JSONStorableFloat("BlinkTimeMax", 0.4f, 0f, 2f, false);
     private readonly JSONStorableFloat _closeEyesJSON = new JSONStorableFloat("CloseEyes", 0f, 0f, 1f, false) { isStorable = false, isRestorable = false};
     private readonly JSONStorableFloat _closeEyesMorphMaxJSON = new JSONStorableFloat("CloseEyesMorphMax", 1f, 0f, 1f, false);
-    private readonly JSONStorableAction _blinkNowJSON;
     private readonly JSONStorableFloat _cameraMouthDistanceJSON = new JSONStorableFloat("CameraMouthDistance", 0.053f, 0f, 0.1f, false);
     private readonly JSONStorableFloat _cameraEyesDistanceJSON = new JSONStorableFloat("CameraEyesDistance", 0.015f, 0f, 0.1f, false);
     private readonly JSONStorableFloat _objectsInViewChangedCooldownJSON = new JSONStorableFloat("ObjectsInViewChangedCooldown", 0.5f, 0f, 10f, false);
-    private readonly JSONStorableBool _preventUnnaturalEyeAngle = new JSONStorableBool("PreventUnnaturalEyeAngle", true);
-    private readonly JSONStorableFloat _eyePitchAngleLimitJSON = new JSONStorableFloat("EyePitchAngleLimit", 30f, 0f, 90f, false);
-    private readonly JSONStorableFloat _eyeYawAngleLimitJSON   = new JSONStorableFloat("EyeYawAngleLimit",   26f, 0f, 90f, false);
-    private readonly JSONStorableFloat _antiCrosseyeDistanceJSON   = new JSONStorableFloat("AntiCrosseyeDistance", 0.2f, 0f, 1f, false);
+    private readonly JSONStorableBool  _preventUnnaturalEyeAngle = new JSONStorableBool("PreventUnnaturalEyeAngle", true);
+    private readonly JSONStorableFloat _eyePitchAngleLimitJSON   = new JSONStorableFloat("EyePitchAngleLimit", 30f, 0f, 90f, false);
+    private readonly JSONStorableFloat _eyeYawAngleLimitJSON     = new JSONStorableFloat("EyeYawAngleLimit",   26f, 0f, 90f, false);
+    private readonly JSONStorableFloat _antiCrosseyeDistanceJSON = new JSONStorableFloat("AntiCrosseyeDistance", 0.2f, 0f, 1f, false);
     private readonly JSONStorableFloat _eyeContactMultiplier     = new JSONStorableFloat("EyeContactMultiplier", 1f, 1f, 10f, false);
-    private readonly JSONStorableBool _useEyeTargetControl = new JSONStorableBool("UseEyeTargetControl", false);
-    private readonly JSONStorableBool _debugJSON = new JSONStorableBool("Debug", false);
-    private readonly JSONStorableBool   _debugTargetsJSON  = new JSONStorableBool("DebugTargets", false);
+    private readonly JSONStorableBool  _useEyeTargetControl      = new JSONStorableBool("UseEyeTargetControl", false);
+    
+    private readonly JSONStorableBool   _debugJSON        = new JSONStorableBool("Debug", false);
+    private readonly JSONStorableBool   _debugTargetsJSON = new JSONStorableBool("DebugTargets", false);
     private readonly JSONStorableString _debugDisplayJSON = new JSONStorableString("DebugDisplay", "");
+    private readonly JSONStorableAction _blinkNowJSON;
 
     private bool _ready;
     private bool _initCalled;
@@ -223,23 +224,23 @@ public class Glance : MVRScript
             CreateSlider(_selfGenitalsWeightJSON, false, "Genitals (self)", "F4");
 
             CreateTitle("Auto targeting priorities (others)", false);
-            CreateSlider(_personsEyesWeightJSON , false, "Eyes (others)", "F4");
-            CreateSlider(_personsMouthWeightJSON , false, "Mouth (others)", "F4");
-            CreateSlider(_personsChestWeightJSON , false, "Chest (others)", "F4");
-            CreateSlider(_personsNipplesWeightJSON , false, "Nipples (others)", "F4");
-            CreateSlider(_personsHandsWeightJSON , false, "Hands (others)", "F4");
-            CreateSlider(_personsGenitalsWeightJSON , false, "Genitals (others)", "F4");
-            CreateSlider(_personsFeetWeightJSON , false, "Feet (others)", "F4");
+            CreateSlider(_personsEyesWeightJSON,     false, "Eyes (others)",     "F4");
+            CreateSlider(_personsMouthWeightJSON,    false, "Mouth (others)",    "F4");
+            CreateSlider(_personsChestWeightJSON,    false, "Chest (others)",    "F4");
+            CreateSlider(_personsNipplesWeightJSON,  false, "Nipples (others)",  "F4");
+            CreateSlider(_personsHandsWeightJSON,    false, "Hands (others)",    "F4");
+            CreateSlider(_personsGenitalsWeightJSON, false, "Genitals (others)", "F4");
+            CreateSlider(_personsFeetWeightJSON,     false, "Feet (others)",     "F4");
 
             CreateTitle("Auto targeting priorities (nothing)", false);
             CreateSlider(_nothingWeightJSON, false, "Nothing (spacey)", "F4");
 
             CreateTitle("Frustum settings (angle of view)", true);
-            CreateSlider(_frustumJSON, true, "Frustum field of view", "F3");
+            CreateSlider(_frustumJSON,      true, "Frustum field of view",          "F2", false);
             CreateSlider(_frustumRatioJSON, true, "Frustum ratio (multiply width)", "F3");
-            CreateSlider(_frustumTiltJSON, true, "Frustum tilt", "F3");
-            CreateSlider(_frustumNearJSON, true, "Frustum near (closest)", "F3");
-            CreateSlider(_frustumFarJSON, true, "Frustum far (furthest)", "F3");
+            CreateSlider(_frustumTiltJSON,  true, "Frustum tilt",                   "F2", false);
+            CreateSlider(_frustumNearJSON,  true, "Frustum near (closest)",         "F3");
+            CreateSlider(_frustumFarJSON,   true, "Frustum far (furthest)",         "F3");
 
             CreateTitle("Timing", true);
             CreateSlider(_lockMinDurationJSON, true, "Min target lock time", "F3");
@@ -248,7 +249,7 @@ public class Glance : MVRScript
             CreateTitle("Eye saccade", true);
             CreateSlider(_saccadeMinDurationJSON, true, "Min eye saccade time", "F4");
             CreateSlider(_saccadeMaxDurationJSON, true, "Max eye saccade time", "F4");
-            CreateSlider(_saccadeRangeJSON, true, "Range of eye saccade", "F4");
+            CreateSlider(_saccadeRangeJSON,       true, "Range of eye saccade", "F4");
 
             CreateTitle("Quick turning", true);
             CreateSlider(_quickTurnThresholdJSON, true, "Quick turn threshold", "F3");
