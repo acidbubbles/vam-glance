@@ -73,6 +73,7 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _eyePitchAngleLimitJSON = new JSONStorableFloat("EyePitchAngleLimit", 30f, 0f, 90f, false);
     private readonly JSONStorableFloat _eyeYawAngleLimitJSON   = new JSONStorableFloat("EyeYawAngleLimit",   26f, 0f, 90f, false);
     private readonly JSONStorableFloat _antiCrosseyeDistanceJSON   = new JSONStorableFloat("AntiCrosseyeDistance", 0.2f, 0f, 1f, false);
+    private readonly JSONStorableFloat _eyeContactMultiplier     = new JSONStorableFloat("EyeContactMultiplier", 1f, 1f, 10f, false);
     private readonly JSONStorableBool _useEyeTargetControl = new JSONStorableBool("UseEyeTargetControl", false);
     private readonly JSONStorableBool _debugJSON = new JSONStorableBool("Debug", false);
     private readonly JSONStorableBool   _debugTargetsJSON  = new JSONStorableBool("DebugTargets", false);
@@ -280,10 +281,11 @@ public class Glance : MVRScript
             CreateTitle("Other settings", true);
             CreateSlider(_objectsInViewChangedCooldownJSON, true, "Objects in view changed cooldown", "F4");
             CreateToggle(_preventUnnaturalEyeAngle, true).label = "Prevent unnatural eye angle";
-            CreateSlider(_eyePitchAngleLimitJSON, true, "Eye Pitch Angle Limit");
-            CreateSlider(_eyeYawAngleLimitJSON,   true, "Eye Yaw Angle Limit");
+            CreateSlider(_eyePitchAngleLimitJSON,   true, "Eye Pitch Angle Limit",  "F2", false);
+            CreateSlider(_eyeYawAngleLimitJSON,     true, "Eye Yaw Angle Limit",    "F2", false);
             CreateSlider(_antiCrosseyeDistanceJSON, true, "Anti Crosseye Distance");
-            CreateToggle(_useEyeTargetControl, true).label = "Use eyeTargetControl";
+            CreateSlider(_eyeContactMultiplier,     true, "Eye Contact Multiplier", "F2", false);
+            CreateToggle(_useEyeTargetControl,      true).label = "Use eyeTargetControl";
 
             RegisterStringChooser(presetsJSON);
             RegisterBool(_disableAutoTarget);
@@ -338,6 +340,7 @@ public class Glance : MVRScript
             RegisterFloat(_eyeYawAngleLimitJSON);
             RegisterFloat(_antiCrosseyeDistanceJSON);
             RegisterBool(_useEyeTargetControl);
+            RegisterFloat(_eyeContactMultiplier);
             RegisterAction(new JSONStorableAction("FocusOnPlayer", FocusOnPlayer));
             RegisterAction(new JSONStorableAction("Refocus", Refocus));
 
@@ -449,6 +452,7 @@ public class Glance : MVRScript
                 _personsChestWeightJSON.val = 0;
                 _personsNipplesWeightJSON.val = 0;
                 _personsGenitalsWeightJSON.val = 0;
+                _eyeContactMultiplier.val = 1f;
                 break;
             case "Horny":
                 _playerMouthWeightJSON.val = 0.8f;
@@ -465,6 +469,7 @@ public class Glance : MVRScript
                 _blinkTimeMaxJSON.val = 0.2f;
                 _blinkSpaceMinJSON.val = 0.8f;
                 _blinkSpaceMaxJSON.val = 3f;
+                _eyeContactMultiplier.val = 2f;
                 break;
             case "Shy":
                 _frustumJSON.val = 24f;
@@ -481,6 +486,7 @@ public class Glance : MVRScript
                 _blinkTimeMaxJSON.val = 0.4f;
                 _blinkSpaceMinJSON.val = 0.5f;
                 _blinkSpaceMaxJSON.val = 4f;
+                _eyeContactMultiplier.val = 1f;
                 break;
             case "Focused":
                 _playerMouthWeightJSON.val = 0.1f;
@@ -495,6 +501,7 @@ public class Glance : MVRScript
                 _blinkTimeMaxJSON.val = 0.3f;
                 _blinkSpaceMinJSON.val = 4f;
                 _blinkSpaceMaxJSON.val = 8f;
+                _eyeContactMultiplier.val = 3f;
                 break;
             case "Anime":
                 _personsMouthWeightJSON.val = 0f;
@@ -507,6 +514,7 @@ public class Glance : MVRScript
                 _blinkSpaceMaxJSON.val = 3f;
                 _blinkTimeMinJSON.val = 0.15f;
                 _blinkTimeMaxJSON.val = 0.15f;
+                _eyeContactMultiplier.val = 1f;
                 break;
         }
     }
@@ -554,13 +562,15 @@ public class Glance : MVRScript
         _eyePitchAngleLimitJSON.SetValToDefault();
         _eyeYawAngleLimitJSON.SetValToDefault();
         _antiCrosseyeDistanceJSON.SetValToDefault();
+        _eyeContactMultiplier.SetValToDefault();
     }
 
-    private void CreateSlider(JSONStorableFloat jsf, bool right, string label, string valueFormat = "F2")
+    private void CreateSlider(JSONStorableFloat jsf, bool right, string label, string valueFormat = "F2", bool rangeAdjust = true)
     {
         var slider = CreateSlider(jsf, right);
         slider.label = label;
         slider.valueFormat = valueFormat;
+        slider.rangeAdjustEnabled = rangeAdjust;
     }
 
     private void SyncDebug(bool val)
@@ -767,8 +777,8 @@ public class Glance : MVRScript
         {
             if (_playerEyesWeightJSON.val >= 0.01f)
             {
-                _objects.Add(new EyeTargetCandidate(_mainCameraFaceRig.lEye, _playerEyesWeightJSON.val, 0.5f));
-                _objects.Add(new EyeTargetCandidate(_mainCameraFaceRig.rEye, _playerEyesWeightJSON.val, 0.5f));
+                _objects.Add(new EyeTargetCandidate(_mainCameraFaceRig.lEye, _playerEyesWeightJSON.val, 0.5f, true));
+                _objects.Add(new EyeTargetCandidate(_mainCameraFaceRig.rEye, _playerEyesWeightJSON.val, 0.5f, true));
             }
 
             if (_playerMouthWeightJSON.val >= 0.01f)
@@ -805,8 +815,8 @@ public class Glance : MVRScript
                     {
                         if (_playerEyesWeightJSON.val >= 0.01f)
                         {
-                            _objects.Add(new EyeTargetCandidate(_windowCameraFaceRig.lEye, _playerEyesWeightJSON.val, 0.5f));
-                            _objects.Add(new EyeTargetCandidate(_windowCameraFaceRig.rEye, _playerEyesWeightJSON.val, 0.5f));
+                            _objects.Add(new EyeTargetCandidate(_windowCameraFaceRig.lEye, _playerEyesWeightJSON.val, 0.5f, true));
+                            _objects.Add(new EyeTargetCandidate(_windowCameraFaceRig.rEye, _playerEyesWeightJSON.val, 0.5f, true));
                         }
 
                         if (_playerMouthWeightJSON.val >= 0.01f)
@@ -854,7 +864,7 @@ public class Glance : MVRScript
                                 case "lEye":
                                 case "rEye":
                                     if (_personsEyesWeightJSON.val < 0.01f) continue;
-                                    _objects.Add(new EyeTargetCandidate(bone.transform, _personsEyesWeightJSON.val, 0.5f));
+                                    _objects.Add(new EyeTargetCandidate(bone.transform, _personsEyesWeightJSON.val, 0.5f, true));
                                     break;
                                 case "tongue03":
                                     if (_personsMouthWeightJSON.val < 0.01f) continue;
@@ -881,8 +891,8 @@ public class Glance : MVRScript
                         var bones = atom.transform.Find("rescale2").GetComponentsInChildren<DAZBone>();
                         if (_personsEyesWeightJSON.val > 0.01f)
                         {
-                            _objects.Add(new EyeTargetCandidate(bones.First(b => b.name == "lEye").transform, _personsEyesWeightJSON.val * personWeight, 0.5f));
-                            _objects.Add(new EyeTargetCandidate(bones.First(b => b.name == "rEye").transform, _personsEyesWeightJSON.val * personWeight, 0.5f));
+                            _objects.Add(new EyeTargetCandidate(bones.First(b => b.name == "lEye").transform, _personsEyesWeightJSON.val * personWeight, 0.5f, true));
+                            _objects.Add(new EyeTargetCandidate(bones.First(b => b.name == "rEye").transform, _personsEyesWeightJSON.val * personWeight, 0.5f, true));
                         }
                         if (_personsMouthWeightJSON.val > 0.01f)
                         {
@@ -1251,7 +1261,9 @@ public class Glance : MVRScript
             }
             _lockTarget = lockTarget;
             var gazeDuration = (_lockMaxDurationJSON.val - _lockMinDurationJSON.val) * (lockTarget.weight * lockTarget.ratio);
-            _nextLockTargetTime = Time.time + Random.Range(_lockMinDurationJSON.val, _lockMinDurationJSON.val + gazeDuration);
+            var deltaTime    = Random.Range(_lockMinDurationJSON.val, _lockMinDurationJSON.val + gazeDuration);
+            if (lockTarget.isEye) { deltaTime *= _eyeContactMultiplier.val; }
+            _nextLockTargetTime = Time.time + deltaTime;
         }
 
         if (_debugJSON.val && UITransform.gameObject.activeInHierarchy)
@@ -1485,6 +1497,11 @@ public class Glance : MVRScript
             var angleScore = (1f - angleWeight) + (1f - (Mathf.Clamp(Vector3.Angle(lookDirection, position - eyesCenter), 0, _frustumJSON.val) / _frustumJSON.val)) * angleWeight;
             var score = distanceScore * angleScore;
             probabilityWeight = o.weight * score;
+            if (o.isEye) 
+            {
+                // up to 2x higher weight on eyes depending on eye contact slider
+                probabilityWeight *= 1 + Mathf.Log(_eyeContactMultiplier.val);
+            }
             return true;
         }
 
@@ -1616,14 +1633,16 @@ public class Glance : MVRScript
         public readonly Transform transform;
         public readonly float weight;
         public readonly float ratio;
+        public readonly bool  isEye;
         public readonly float scoredWeight;
         public readonly BoxCollider lookAtMirror;
 
-        public EyeTargetCandidate(Transform transform, float weight, float ratio = 1f)
+        public EyeTargetCandidate(Transform transform, float weight, float ratio = 1f, bool isEye = false)
         {
             this.transform = transform;
             this.weight    = weight;
             this.ratio     = ratio;
+            this.isEye     = isEye;
             scoredWeight = 0f;
             lookAtMirror = null;
         }
@@ -1633,6 +1652,7 @@ public class Glance : MVRScript
             transform = source.transform;
             weight    = source.weight;
             ratio     = source.ratio;
+            isEye     = source.isEye;
             this.scoredWeight = scoredWeight;
             this.lookAtMirror = lookAtMirror;
         }
