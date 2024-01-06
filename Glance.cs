@@ -74,7 +74,7 @@ public class Glance : MVRScript
     private readonly JSONStorableFloat _antiCrosseyeDistanceJSON = new JSONStorableFloat("AntiCrosseyeDistance", 0.2f, 0f, 1f, false);
     private readonly JSONStorableFloat _eyeContactMultiplier     = new JSONStorableFloat("EyeContactMultiplier", 1f, 1f, 10f, false);
     private readonly JSONStorableBool  _useEyeTargetControl      = new JSONStorableBool("UseEyeTargetControl", false);
-    
+
     private readonly JSONStorableBool   _debugJSON        = new JSONStorableBool("Debug", false);
     private readonly JSONStorableBool   _debugTargetsJSON = new JSONStorableBool("DebugTargets", false);
     private readonly JSONStorableString _debugDisplayJSON = new JSONStorableString("DebugDisplay", "");
@@ -831,7 +831,7 @@ public class Glance : MVRScript
                 case "Person":
                 {
                     float personWeight = _disableAutoTarget.val ? 0f : 1f;
-                    
+
                     // Enable GlanceTarget also on person (so a person can, e.g., be looked at less frequently)
                     if (atom.IsBoolJSONParam("GlanceTarget"))
                     {
@@ -864,12 +864,12 @@ public class Glance : MVRScript
                             {
                                 case "lEye":
                                 case "rEye":
-                                    if (_personsEyesWeightJSON.val < 0.01f) continue;
-                                    _objects.Add(new EyeTargetCandidate(bone.transform, _personsEyesWeightJSON.val, 0.5f, true));
+                                    if (_selfEyesWeightJSON.val < 0.01f) continue;
+                                    _objects.Add(new EyeTargetCandidate(bone.transform, _selfEyesWeightJSON.val, 0.5f, true));
                                     break;
                                 case "tongue03":
-                                    if (_personsMouthWeightJSON.val < 0.01f) continue;
-                                    _objects.Add(new EyeTargetCandidate(bone.transform, _personsMouthWeightJSON.val));
+                                    if (_selfMouthWeightJSON.val < 0.01f) continue;
+                                    _objects.Add(new EyeTargetCandidate(bone.transform, _selfMouthWeightJSON.val));
                                     break;
                                 case "lHand":
                                 case "rHand":
@@ -1109,6 +1109,7 @@ public class Glance : MVRScript
 
         if (AreEyesInRange()) return;
 
+        // Note: Rapid eye movement when close to the extreme and no better target in range.
         _nextGazeTime = 0f;
         _nextLockTargetTime = 0f;
         _angularVelocityBurstCooldown = 0f;
@@ -1202,7 +1203,7 @@ public class Glance : MVRScript
             if (_angularVelocityBurstCooldown < Time.time)
             {
                 if (_blinkEnabledJSON.val)
-                { 
+                {
                     // only blink if enabled
 	                _eyelidBehavior.Blink();
                 }
@@ -1474,7 +1475,9 @@ public class Glance : MVRScript
         else
         {
             if (!ReferenceEquals(_lockTarget.transform, null))
+            {
                 _nextGazeTime = 0f;
+            }
             _lockTarget = _nullEyeTarget;
             _nextLockTargetTime = float.PositiveInfinity;
             SetLineColor(_frustumLineRenderer, Color.gray);
@@ -1498,7 +1501,7 @@ public class Glance : MVRScript
             var angleScore = (1f - angleWeight) + (1f - (Mathf.Clamp(Vector3.Angle(lookDirection, position - eyesCenter), 0, _frustumJSON.val) / _frustumJSON.val)) * angleWeight;
             var score = distanceScore * angleScore;
             probabilityWeight = o.weight * score;
-            if (o.isEye) 
+            if (o.isEye)
             {
                 // up to 2x higher weight on eyes depending on eye contact slider
                 probabilityWeight *= 1 + Mathf.Log(_eyeContactMultiplier.val);
@@ -1542,7 +1545,7 @@ public class Glance : MVRScript
     {
         _needRescan = true;
     }
-    
+
     // Source: http://answers.unity.com/answers/1024526/view.html
     private void CalculateFrustum(Vector3 origin, Vector3 direction, Vector3 up, float fovRadians, float viewRatio, float near, float far, Plane[] frustumPlanes)
     {
